@@ -5,7 +5,7 @@ import pandas as pd
 
 token_1 = 'USDC'
 token_2 = 'WETH'
-token_1_initial = 100000000000000000
+token_1_initial = 1000000000000000
 fee_rate = 0
 
 
