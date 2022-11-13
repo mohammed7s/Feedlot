@@ -5,13 +5,15 @@ import pandas as pd
 
 token_1 = 'USDC'
 token_2 = 'WETH'
-token_1_initial = 1000000000000000000000
-fee_rate = 0
+token_1_initial = 1000000
+
+fee_rate = 0.01
+
 
 
 ## Analysis / AMM Modeling
 
-# CPMM model: (x + dx) * (y - (1-s)*dy) = k 
+# CPMM model: (x + dx) * (y - (1+s)*dy) = k 
 
 df = pd.read_csv('cow-3month-download.csv')
 
@@ -55,12 +57,13 @@ for i in range(len(df)):
         x = token_2_reserve 
         dx = df.iloc[i,4]
         dy = df.iloc[i,3]
-        k_new = (x + dx) * (y - (1-s)*dy)   
+        k_new = (x + dx) * (y - (1+s)*dy)   
         if k_new > k:
             trades = trades + 1 
             volume = volume + df.iloc[i,5]
-            token_1_reserve = y-(1-s)*dy 
+            token_1_reserve = y-(1+s)*dy 
             token_2_reserve = x+dx 
+            fees = fees + (s * df.iloc[i,5]) 
 
     # if token_2 is the "buy token"
     if df.iloc[i,1] == token_2:
@@ -68,13 +71,13 @@ for i in range(len(df)):
         x = token_1_reserve 
         dx = df.iloc[i,4]
         dy = df.iloc[i,3]
-        k_new = (x + dx) * (y - (1-s)*dy)    
+        k_new = (x + dx) * (y - (1+s)*dy)    
         if k_new > k: 
             trades = trades + 1 
             volume = volume + df.iloc[i,5]
-            token_2_reserve = y-(1-s)*dy 
+            token_2_reserve = y-(1+s)*dy 
             token_1_reserve = x+dx 
-
+            fees = fees + (s * df.iloc[i,5])
 
 # Analysis 
 
@@ -86,6 +89,6 @@ trades_executed_percentage = trades / total_trades * 100
 print('of trades executed = ', trades_executed_percentage, '%') 
 
 print('total usd volume traded = ', volume)
-# fees collected 
+print('fees collected', fees)  
 
 
