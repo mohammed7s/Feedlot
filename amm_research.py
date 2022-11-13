@@ -5,7 +5,7 @@ import pandas as pd
 
 token_1 = 'USDC'
 token_2 = 'WETH'
-token_1_initial = 1000000000000000
+token_1_initial = 1000000000000000000000
 fee_rate = 0
 
 
@@ -70,7 +70,6 @@ for i in range(len(df)):
         dy = df.iloc[i,3]
         k_new = (x + dx) * (y - (1-s)*dy)    
         if k_new > k: 
-            k = k_new
             trades = trades + 1 
             volume = volume + df.iloc[i,5]
             token_2_reserve = y-(1-s)*dy 
