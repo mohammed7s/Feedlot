@@ -5,10 +5,10 @@ import pandas as pd
 
 token_1 = 'USDC'
 token_2 = 'WETH'
-token_1_initial = 1000000
+token_1_initial = 1000000000
 
-fee_rate = 0.01
 
+fee_rate = 0.02
 
 
 ## Analysis / AMM Modeling
@@ -26,7 +26,7 @@ price = df.units_bought / df.units_sold
 df['price'] = price 
 
 #inspect cleaned data ready for analysis
-pd.DataFrame(df).to_csv('inspect_df.csv', index=False)
+#pd.DataFrame(df).to_csv('inspect_df.csv', index=False)
 
 
 # initialize pool 
@@ -84,10 +84,8 @@ for i in range(len(df)):
 total_trades = len(df) 
 print('total_trades= ', total_trades)
 print('trades executed = ', trades)
-
 trades_executed_percentage = trades / total_trades * 100 
-print('of trades executed = ', trades_executed_percentage, '%') 
-
+print('percentage of trades executed = ', trades_executed_percentage, '%') 
 print('total usd volume traded = ', volume)
 print('fees collected', fees)  
 
