@@ -44,8 +44,8 @@ The aim of this proposal is to act as a “feasibility study” for implementing
  A report with the results of the research, as well as an open-source repository containing the code used for quantitative models.
 
 ####  Team: 
-**Andrew** : PHD Math. MEV research (Flashbots). https://awmacpherson.com/
-**Evan**: Mathematician. Data scientist. AMM researcher. [https://mirror.xyz/evandekim.eth/kowg_VFD7lp5p12C4wcytc2rooVXgKnUwBd-KUKtndQ](https://mirror.xyz/evandekim.eth/kowg_VFD7lp5p12C4wcytc2rooVXgKnUwBd-KUKtndQ "https://mirror.xyz/evandekim.eth/kowg_VFD7lp5p12C4wcytc2rooVXgKnUwBd-KUKtndQ") 
+**Andrew** : PHD Math. MEV research (Flashbots). https://awmacpherson.com/  
+**Evan**: Mathematician. Data scientist. AMM researcher. [https://mirror.xyz/evandekim.eth/kowg_VFD7lp5p12C4wcytc2rooVXgKnUwBd-KUKtndQ](https://mirror.xyz/evandekim.eth/kowg_VFD7lp5p12C4wcytc2rooVXgKnUwBd-KUKtndQ "https://mirror.xyz/evandekim.eth/kowg_VFD7lp5p12C4wcytc2rooVXgKnUwBd-KUKtndQ")   
 **Mohammed**: Electrical Engineer. Economics. Modelling. Trading.
 
 #### Timeline:
