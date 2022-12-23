@@ -51,9 +51,9 @@ The aim of this proposal is to act as a “feasibility study” for implementing
  A report with the results of the research, as well as an open-source repository containing the code used for quantitative models.
 
 ####  Team: 
-**Andrew** : PHD Mathematics (Geometry). [MEV research](https://github.com/flashbots/mev-research/blob/main/FRPs/active/FRP-22.md). [Personal Website](https://awmacpherson.com/)
-**Evan**: Mathematician. Data scientist. AMM researcher. [Personal Blog](https://mirror.xyz/evandekim.eth/kowg_VFD7lp5p12C4wcytc2rooVXgKnUwBd-KUKtndQ)
-**Mohammed**: Electrical/Electronics Engineer. MSc Economics. Crypto Algorithmic trading/ Market making. ETH Arabia. 
+**Andrew** : PHD Mathematics (Geometry). [MEV research](https://github.com/flashbots/mev-research/blob/main/FRPs/active/FRP-22.md). [Personal Website](https://awmacpherson.com/)  
+**Evan**: Mathematician. Data scientist. AMM researcher. [Personal Blog](https://mirror.xyz/evandekim.eth/kowg_VFD7lp5p12C4wcytc2rooVXgKnUwBd-KUKtndQ)  
+**Mohammed**: Electrical/Electronics Engineer. MSc Economics. Crypto Algorithmic trading/ Market making. ETH Arabia.   
 
 #### Timeline:
 
