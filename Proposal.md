@@ -73,7 +73,7 @@ Week 6: Complete research paper writeup.
 
 Evaluation: 60% FTE evaluated on median US salary for 6 week duration. 
 
-Upfront: 15k USDC 
+Upfront: 15k USDC   
 Upon Completion: 180k COW
 
   
