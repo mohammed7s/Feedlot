@@ -1,84 +1,41 @@
-**Proposal: The R&D grant is for studying a surplus-capturing AMM. The study will evaluate the economic viability and practicality of an AMM that is able to capture surplus in the form of better pricing for COW users and offering LPs to provide liquidity for these orders without LVR loss.**
+## Grant title
+Surplus-capturing AMMs --- a feasibility study
 
-  
+
+## About the team
+
+**Andrew** : Ph.D. Mathematics, 10+ years experience academic research at internationally leading pure research institutions. [MEV research](https://github.com/flashbots/mev-research/blob/main/FRPs/active/FRP-22.md) w/ Flashbots. [awmacpherson.com](https://awmacpherson.com/)  
+
+**Evan**: Mathematician, Data Analyst, DeFi Mechanism Design researcher. Previous research includes bonding curve controller modeling, analysis of RMM-01 LP mechanics, analysis of MEV arbitrage mechanics on POL, and cross margin risk modeling. [evandekim.eth](https://mirror.xyz/evandekim.eth/kowg_VFD7lp5p12C4wcytc2rooVXgKnUwBd-KUKtndQ)
+
+**Mohammed**: Electrical/Electronics Engineer. MSc Economics focus on Asset pricing and credit cycle modeling. 5+ years in TradFi derivatives trading. Currently researching and building digital asset focused algorithmic trading/market making algorithms, PBS research and post-merge ETH testnet development (Ephemery/Holesovice).  
+
+## Grant category
+
+Analytics and Integrations  
+
+## Grant description
+
 ###  Background
 
-The proposal builds on -and is the continuation of- a discussion in the COW forum started by @fluepold [here](https://forum.cow.fi/t/cow-native-amms-aka-surplus-capturing-amms-with-single-price-clearing/1219) which is also a continuation of a line of enquiry started on ethresearch forum about MEV-capturing AMMs. Both discussions surfaced exciting prospects for AMM designs that captures some value back from arbitrageurs and MEV searchers at the application layer. Both achieve better prices for users and an improved overall return profile for LPs than traditional AMMs on the whole. The proposal aims to provide the theorotical underpinnings for a practical implementation of such an AMM. 
+The proposal builds on a [thread in the COW forum](https://forum.cow.fi/t/cow-native-amms-aka-surplus-capturing-amms-with-single-price-clearing/1219) about a CoW-specific form of [MEV-capturing AMM](https://ethresear.ch/t/mev-capturing-amm-mcamm/13336). The discussion surfaced exciting prospects for AMM designs that promise to take back control of "surplus" value ordinarily captured by arbitrageurs and MEV searchers. This value can then be deployed, for example, to achieve better prices for users and an improved overall return profile for LPs than the traditional CFMM.
 
 
-### The surplus Distribution Problem
+### The surplus distribution problem
 
-Traditional CFMMs , by smart contract design, require users to interact with them to update prices. This allows for LPs on CFMMs to leak value due to adverse selection because they cannot feasibly update their quotes as fast as high-frequency swappers. Recent academic [research](https://arxiv.org/abs/2208.06046) has provided a way to formally quantify these losses as "loss-versus rebalancing" (LVR): the difference in value between actual CFMM reserves and a hypothetical ideal "rebalancing strategy" which tracks the same portfolio makeup by trading at a price quoted by an external market rather than the (stale) CFMM price.
+In the classic CFMM design, prices are updated by arbitrageurs who are paid for this service by capturing the price differential between the CFMM and external markets. Liquidity providers (LPs) effectively bear these costs of this by constantly having to accept trades at unfavourable prices, a phenomenon known to economists as adverse selection. Although these costs can be offset by trading fees, this approach to value allocation is limited in two ways:
 
-An AMM that quotes prices provided by a "perfect" high-frequency price oracle while at the same time maintaining portfolio balance would exactly simulate the rebalancing portfolio and hence eliminate losses due to adverse selection. This would open up the potential for new models of distributing value among LPs and active traders. 
+- Linear trading fees equally impact arbitrageurs and “noise traders” who may be prepared to trade at prices favourable to LPs.
+- Arbitrageurs compete only for positioning of their transactions in the block, and the proceeds of this competition goes to block producers rather than LPs. There is no room for a competitive market for updating prices.
 
-The key hypothesis of this study is that COW solvers currently calculate a price that simulates the rebalancing portfolio for tokens traded in a COW batch. This allows for LVR to be captured for those specific orders and hence the name: surplus-capturing. Fortunately, this surplus can be captured by COW users and LPs but not the external arbitrageurs. The design of the AMM should allow for the surplus to be split between users and LPs in any fraction desired by the AMM designer. 
+The CoW batch auction provides a more flexible approach to delivering price information which distinguishes arbitrageurs (or “solvers”) from noise traders and permits new dimensions of competition on price discovery. On the other hand, the CoW protocol as it stands does not provide its own liquidity, and in practice most of the liquidity comes from standard CFMMs whos LPs suffer adverse selection by trading with the CoW solver.
 
-### Goals
+The basic idea of this proposal is to evaluate the feasibility and impact of an approach to AMM design which custodies its own liquidity but uses the pricing discovered by CoW solvers. Such an AMM would be quite remarkable in that it would provide a way to earn yield for LPs from passive liquidity provision without exposure to adverse selection at the some time offer better pricing for CoW users. Given the power of this result, it is natural to expect that some challenges lie in its realisation.
 
-The aim of this proposal is to act as a “feasibility study” for implementing surplus-capturing AMMs. This project aims to:  
-  
-
--   Evaluate the extent to which this idealised AMM could be approximated in practice by using the CoW solver price as a price oracle.
-    
--   Quantify, through empirical studies, the excess value that could be captured and and delivered to LPs and users through this mechanism.
-
--   Evaluate the economic consequences of various mechanism designs for implementation. 
-
-    
-
-### Research Methodology
-
-1.  Conduct a theoretical analysis of the potential size of the surplus that can be captured by a surplus-capturing AMM and develop a quantitative model to estimate this surplus.  
-    
-2.  Compare the portfolio metrics of LPs in a surplus-capturing AMM to those in a traditional AMM using historical market data. This will involve calculating metrics such as impermenant loss, return on investment, Sharpe ratio, and volatility for LPs in both types of AMMs.  
-      
-3.  Conduct simulations and/or experiments to evaluate the potential MEV savings for users of a surplus-capturing AMM compared to a traditional AMM. This will involve implementing the AMM in a controlled environment and collecting data on the MEV savings generated by the AMM under different market conditions and user behaviors.  
-    
-4.  Evaluate the use of COW solvers as an approximation of the zero-arbitrage price of the market by comparing the performance of COW solvers to other approaches for estimating this price. This involves studying how changes to COW batch times and the increasing role of builders and searchers impact this accuracy.  
-      
-5.  Investigate the mechanisms for splitting the surplus between users and LPs, and the best tools for the Surplus-capturing AMM builder to use. 
-
-    
-6.  To ensure the validity and reliability of the results, the proposed methodology will involve a combination of theoretical analysis, mathematical modelling, and empirical studies. Data will be collected from real-world markets and on-chain data for COW Swap trades and other AMM trades. Experiments will be conducted in controlled environments to simulate the behaviour of the AMM under different conditions. 
-
-	
-
-    
-### Plan & Deliverables
-
-#### Deliverable
-
- A report with the results of the research, as well as an open-source repository containing the code used for quantitative models.
-
-####  Team: 
-**Andrew** : PHD Mathematics. [MEV research](https://github.com/flashbots/mev-research/blob/main/FRPs/active/FRP-22.md). [Personal Website](https://awmacpherson.com/)  
-**Evan**: Mathematician. Data scientist. AMM researcher. [Personal Blog](https://mirror.xyz/evandekim.eth/kowg_VFD7lp5p12C4wcytc2rooVXgKnUwBd-KUKtndQ)  
-**Mohammed**: Electrical/Electronics Engineer. MSc Economics. Crypto Algorithmic trading/ Market making.  
-
-#### Timeline:
-
-Duration: 6 weeks
-
-Week 1-2: Conduct theoretical analysis and develop quantitative model to estimate surplus capture potential. Conduct simulations or experiments to evaluate MEV savings for users of surplus-capturing AMM.
-
-Week 3-4: Compare portfolio metrics of LPs in surplus-capturing AMM to traditional AMM using historical market data. Evaluate performance of COW solvers for estimating zero-arbitrage price.
-
-Week 5: Investigate mechanisms for splitting surplus and evaluate potential benefits and challenges. Conduct additional simulations or experiments as needed to further assess performance of surplus-capturing AMM. 
-
-Week 6: Complete research paper writeup. 
+In our view, a feasibility study is necessary because of apparent confusion about the nature of the value that could be captured by such an AMM, undefined aspects of its design, and the [security](https://samczsun.com/so-you-want-to-use-a-price-oracle/) [implications](https://jumpcrypto.com/so-you-still-want-to-use-a-price-oracle/) of using the CoW solution as a price oracle for an external protoocol. 
 
 
-#### Grant Detais: 
-15k USDC + 180k COW 
-
-Evaluation: 60% FTE evaluated on median US salary for 6 week duration. 
-
-Upfront: 15k USDC   
-Upon Completion: 180k COW  
-
-
-### References
+## References
 
 -   Price volatility impact on LPs studied by Milionis et al. in LVR (paper titled: Automated Market Making and Loss-Versus-Rebalancing) ([https://arxiv.org/abs/2208.06046](https://arxiv.org/abs/2208.06046))
     
@@ -91,5 +48,50 @@ Upon Completion: 180k COW
 -   Paper details math behind using external price oracle in standard CPMM ([https://anrg.usc.edu/www/papers/dynamicautomation.pdf](https://anrg.usc.edu/www/papers/dynamicautomation.pdf))
     
 -   Forum proposal continues ideas on McAMMs, using fees as main tool for capturing LVR for LPs ([https://ethresear.ch/t/dynamic-mev-capturing-amm-dmcamm/13849](https://ethresear.ch/t/dynamic-mev-capturing-amm-dmcamm/13849))
+
+
+## Grant goals and impact 
+
+- Propose high-level candidate architectures for “surplus-capturing” AMMs. In particular, address whether changes to CoW protocol itself are needed. Investigate security considerations, economic and otherwise, of the proposed architectures and discuss mitigation strategies.
+
+- Develop a quantitative model of the additional value that could be captured and delivered to LPs and users and measure it through empirical studies and simulations.
+
+
+**Deliverable** A technical report outlining relevant theoretical background, design considerations, metrics, and results of empirical studies. GitHub repository containing the code used for data studies.
+
+**Impact** The study will provide evidence as to whether current COW tools such as the competitive solver pricing can be utilized to build a surplus-capturing AMM in practise. It will also analyze the kind of "surplus" it would capture, its size, and the extra value users and LPs expect to receive. Thus preparing the ground for detailed design implementation.  
+
+
+## Milestones 
+
+- Architecture. Specify candidate architectures (which will be used to define simulations and economic attacks). Discuss:
+
+    - How prices are communicated from solver to AMM.
+
+    - How LP portfolios are managed.
+    - Block/batch synchronisation.
+
+
+- Security. Study attack scenarios and propose mitigation strategies. Discuss fallbacks in case of a delayed or missing oracle update.
+
+- Quantitative. Compare portfolio metrics of LPs in proposed designs with those of a traditional CFMM using historical market data. Clarify the relation of these quantities to LVR.
+
+- Quantitative. Evaluate the use of COW solvers as an oracle for an arbitrage-free price by comparing the performance of COW solvers with other approaches to computing this price.
+
+## Grant timeline
+
+6--8 weeks 
+
+## Budget breakdown 
+
+Upfront: 15k XDAI
+
+Upon completion: 6k XDAI / 150k COW (12month linear vesting)
+
+
+ 
+## Gnosis chain Address 
+
+To be disclosed to grants team
 
 
