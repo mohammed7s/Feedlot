@@ -14,6 +14,8 @@ __pycache__/*
 */.ipynb_checkpoints/*
 .DS_Store
 *.code-workspace
+/data/cowv2_solvers.csv
+
 
 
 # Project files
@@ -48,8 +50,9 @@ docs/api/*
 docs/_rst/*
 docs/_build/*
 cover/*
-/data/cow/*
-/data/cow-gc/*
+/data/cow_raw/*
+/data/cow-gc_raw/*
+/data/transformed/*
 MANIFEST
 
 # Per-project virtualenvs
