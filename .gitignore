@@ -14,7 +14,7 @@ __pycache__/*
 */.ipynb_checkpoints/*
 .DS_Store
 *.code-workspace
-/data*
+
 
 # Project files
 .ropeproject
@@ -48,9 +48,12 @@ docs/api/*
 docs/_rst/*
 docs/_build/*
 cover/*
+/data/cow/*
+/data/cow-gc/*
 MANIFEST
 
 # Per-project virtualenvs
 .venv*/
 .conda*/
 .python-version
+/vcow*
