@@ -14,7 +14,6 @@ __pycache__/*
 */.ipynb_checkpoints/*
 .DS_Store
 *.code-workspace
-/data/cowv2_solvers.csv
 
 
 
@@ -50,9 +49,11 @@ docs/api/*
 docs/_rst/*
 docs/_build/*
 cover/*
+/data/cowv2_solvers.csv
 /data/cow_raw/*
 /data/cow-gc_raw/*
 /data/transformed/*
+/data/chainlink_prices/*
 MANIFEST
 
 # Per-project virtualenvs
