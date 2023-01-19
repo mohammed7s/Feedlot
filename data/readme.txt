@@ -1,1 +1,3 @@
 All of the data in the data folder is stored in Dropbox. To repliate the data setup, download the .zip files and zip them into the data folder. Then all notebooks should run if your directory is pointing to the Feedlot folder (not Feedlot/data folder)
+
+image.png
