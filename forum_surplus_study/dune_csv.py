@@ -201,8 +201,6 @@ class TestDuneAnalytics:
 #########     Download table of dune query data    ##############
 #################################################################
 
-print('hi')
-
 # params
 output_file_raw = "cow-3month-download.csv"
 your_query_id = 37241 # this is the cow protocol ID
