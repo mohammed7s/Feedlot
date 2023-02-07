@@ -1,0 +1,30 @@
+%
+%%% TITLE & SPLASH
+%
+
+\usepackage{titling}
+
+\pretitle{
+  \begin{flushleft} \Huge \sffamily \rule{\textwidth}{0.1ex}\vspace{1ex}}
+\posttitle{ \rule{\textwidth}{0.1ex} \end{flushleft}}
+\title{ Feedlot: trading with safe, low latency price oracles  \thanks{This research was funded by the Gnosis DAO.} }
+
+\preauthor{\begin{flushleft} \LARGE \sffamily \itshape}
+\author{The Feedlot working group}
+\postauthor{\end{flushleft}}
+
+\date{}
+
+
+\newcommand \printsplash {%
+\noindent
+  { \color {gray} \rule[-1ex]{0.5em}{7ex}\hspace{2em} }
+  \begin{minipage}[b]{\textwidth - 4.7em}
+    \onehalfspacing
+    \emph{feed} --- Something supplied continuously.
+    
+    \emph{lot} --- One or more items auctioned or sold as a unit, separate from other items.
+  \end{minipage}
+  { \color {gray} \rule[-1ex]{0.2em}{7ex}\hspace{2em} }
+  \vspace{4ex}
+}

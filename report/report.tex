@@ -1,0 +1,125 @@
+\documentclass[a4paper,10pt]{article}
+
+\input{font}
+\input{layout}
+
+  
+
+%
+%%% CROSS REFERENCING %%%%%%%%%%%%%%%%%%%%%%
+%
+
+\usepackage[colorlinks=true,
+                linkcolor=teal,
+                citecolor=olive,
+                destlabel=true,
+                bookmarks=true]{hyperref}
+
+% Turns cross-references into links by redefining \refstepcounter
+% Turns citations into links by redefining \bibcite
+% Turns amsmath equation numbers into links by unknown wizardry
+% Provides \href{}{}
+
+\usepackage{bookmark} 
+% patches hyperref to simplify processing (no .out file is generated and 
+% only needs 2 runs).
+
+%
+%%% BIBLIOGRAPHY %%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\input{bib}
+
+%%% MATH MACROS %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\usepackage{calc}
+\usepackage{xcolor}
+\newcommand \Vol {\mathrm{vol}}
+
+
+
+\input{title}
+
+%%% END OF PREAMBLE %%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+\maketitle
+\printsplash
+
+\paragraph{Purpose of this document}
+
+This article is a feasibility study for a class of automated market makers (AMMs) that passively provide liquidity at a price based on the uniform clearing price (UCP) of a competitive batch auction.
+
+It is not a whitepaper, specification, or proposal, and it makes no claim to exhaustiveness or completeness on any of the topics discussed --- particularly security. 
+%
+Would-be implementers of a feedlot AMM are advised to pursue thorough further investigations of these issues in the context into which they hope to deploy.
+
+\newpage
+\section{Introduction}
+
+\section{General design principles}
+
+Principles of feedlot:
+\begin{itemize}
+  \item
+    Feedlot AMM LPs should enjoy cheap portfolio management, some yield, and protection from adverse selection.
+    
+  \item
+    Feedlot AMM traders should enjoy low, predictable fees, control over execution time, and favourable prices at least for trades in the `correct' direction.
+    
+  \item
+    It should not be economical to manipulate the UCP of the COW batch auction in order to trade on feedlot.
+    
+    Moreover, trading on a feedlot AMM should not make it too cheap to manipulate the COW UCP for any reason.
+
+  \item 
+    Although it is often possible to fall back on social consensus via CoW DAO slashing --- at least as long as misbehaviour is detectable --- wherever possible, feedlot should use incentive-compatible mechanisms to ensure correct operation in most cases.
+    
+  
+\end{itemize}
+
+
+\section{Architecture}
+
+\section{Cryptoeconomic security}
+
+The following inequality must be satisfied:
+\[ \Delta_p \cdot\Vol_\mathrm{COW} > \Delta_p\cdot \Vol_\mathrm{feedlot} + P_\mathrm{ext}(\Delta_p)  \]
+where:
+\begin{itemize}
+  \item $\Delta_p$ is the difference between the fair market price and the manipulated price.
+  \item $\Vol_\mathrm{COW}$, resp.~$\Vol_\mathrm{feedlot}$ is the total volume on COW, resp.~Feedlot, for the pair.
+  \item $P_\mathrm{ext}$ is the profit to be made from manipulating the price by $\Delta_p$ on external markets.
+\end{itemize}
+
+It is not feasible to estimate $P_\mathrm{ext}(p)$ for all time, and the developers of COW protocol can not reasonably expect to have any control on how COW price feeds are used in offchain markets.
+%
+The best we can hope to do is to ensure that
+\[
+  \Vol_\mathrm{COW} \gg \Vol_\mathrm{feedlot}
+\]
+and that it is difficult to guarantee atomic execution on both the COW batch and feedlot markets in opposite directions.
+
+\section{The inventory problem}
+
+Apart from trading fees and price updates, Uniswap or Balancer arbitrageurs provide a kind of portfolio management service to LPs.
+%
+This approach to portfolio management may be highly efficient, but it suffers from some problems:
+\begin{itemize}
+  \item 
+    There is no room for competition on price to deliver this service: the cost to LPs is fixed in terms of the CFMM invariant, the initial reserves, and the price change.
+    %
+    Arbitrageurs compete to rebalance reserves on the basis of speed or bribes; the proceeds of this competition go to infrastructure providers rather than LPs.
+    
+  \item
+    Portfolio management and price updates are bundled together in the same operation. There is no scope for these services to be priced or managed separately.
+    
+\end{itemize}
+
+So far, we have not discussed any analogous mechanism for feedlot LPs.
+
+\section{Conclusion}
+
+This was a success.
+
+\printbibliography
+\end{document}
