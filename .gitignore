@@ -54,6 +54,8 @@ cover/*
 /data/cow-gc_raw/*
 /data/transformed/*
 /data/chainlink_prices/*
+cow_swap_datastreams_tutorial/*
+
 MANIFEST
 
 # Per-project virtualenvs
