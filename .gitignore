@@ -54,7 +54,12 @@ cover/*
 /data/cow-gc_raw/*
 /data/transformed/*
 /data/chainlink_prices/*
-cow_swap_datastreams_tutorial/*
+# cow_swap_datastreams_tutorial/*
+/data/*
+/data_scripts/*
+/exploratory_data_notebooks/*
+/transformations/*
+
 
 MANIFEST
 
