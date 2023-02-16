@@ -3,6 +3,8 @@
 \input{font}
 \input{layout}
 
+\usepackage{graphicx}
+
   
 
 %
@@ -31,10 +33,8 @@
 
 %%% MATH MACROS %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\usepackage{calc}
-\usepackage{xcolor}
 \newcommand \Vol {\mathrm{vol}}
-
+\newcommand \oracle {\mathcal{O}}
 
 
 \input{title}
@@ -56,9 +56,7 @@ Would-be implementers of a feedlot AMM are advised to pursue thorough further in
 \newpage
 \section{Introduction}
 
-\section{General design principles}
-
-Principles of feedlot:
+Feedlot AMMs should satisfy the following constraints:
 \begin{itemize}
   \item
     Feedlot AMM LPs should enjoy cheap portfolio management, some yield, and protection from adverse selection.
@@ -67,23 +65,323 @@ Principles of feedlot:
     Feedlot AMM traders should enjoy low, predictable fees, control over execution time, and favourable prices at least for trades in the `correct' direction.
     
   \item
-    It should not be economical to manipulate the UCP of the COW batch auction in order to trade on feedlot.
+    It should not be economical to manipulate the UCP of the CoW batch auction in order to trade at favourable prices on feedlot.
     
-    Moreover, trading on a feedlot AMM should not make it too cheap to manipulate the COW UCP for any reason.
+    Moreover, it should not be possible to substantially offset the cost of manipulating the CoW UCP (for any reason) by trading on a feedlot AMM.
 
   \item 
-    Although it is often possible to fall back on social consensus via CoW DAO slashing --- at least as long as misbehaviour is detectable --- wherever possible, feedlot should use incentive-compatible mechanisms to ensure correct operation in most cases.
-    
+    Wherever possible, feedlot should use incentive-compatible mechanisms to ensure correct operation, without needing to fall back on social adjudication procedures.    
   
 \end{itemize}
 
+\section{General design principles}
+
+
+\subsection{Definitions}
+
+Our blockchain model is based on Ethereum, and should apply to any blockchain-based state machine with similar principles.
+%
+In particular we point out the following assumptions:
+\begin{itemize}
+\item Accounts model that tracks token balances with a common interface (e.g. ERC20) and such that token transfers satisfy usual invariants (i.e.~transfers must preserve total supply and balances cannot be negative).
+\item Transactions (a.k.a.~messages calls) must be initiated by an off-chain entity.
+\item Transactions, once committed, cannot be rolled back. That is, we do not consider the risk of blockchain forks.
+\end{itemize}
+By a \emph{smart contract system} we mean any kind of on-chain entity or aggregation of entities. In particular, it may mean a single smart contract (e.g.~a Uniswap pool) or a structured collection of interacting smart contracts (e.g.~Uniswap as a whole).
+
+\begin{itemize}
+
+  \item \emph{Liquidity pool.} Smart contract system that custodies the assets of \emph{liquidity providers} and tracks withdrawal liabilities.
+  
+  \item \emph{Liquidity provider (LP).} An agent that deposits funds in a liquidity pool.
+  
+  \item \emph{Automated market maker (AMM).} Smart contract system that provides pricing and passively settles orders by trading against a liquidity pool.
+  
+  \item \emph{Batch auction.} Order settlement system that accumulates orders in a buffer and settles them with a uniform clearing price.
+  %
+  Prices are supplied by \emph{solvers} who compete to optimise an objective function defined in terms of the price vector and the set of orders.
+  
+  \item \emph{Uniform clearing price (UCP).} Price vector against which a batch auction is settled.
+  
+  \item \emph{Solver.} Agent that provides quotes in competition to settle a batch auction.
+  
+  \item \emph{Constant function market maker.} AMM whose pricing function depends only on reserves.
+  
+  \item \emph{No-arbitrage price.} A price $p$ such that it is not possible to to make a 
+  
+\end{itemize}
+
+In this article, the pricing provided by an AMM will be a function of state at the time of settlement. In principle it is possible for it to also depend on calldata in the message that triggers the settlement.
+%
+For simplicity, we will mainly consider only pools with two assets $A$ and $B$ whose balances are denoted $(x,y)\in [0,\infty)^2$.
+%
+We take token $A$ for the num\'eraire (also called the `quote token'), so that prices are for token $B$ in terms of token $A$.
+%
+If a trade occurs of $\Delta x$ $A$ tokens for $\Delta y$ $B$ tokens, the execution price is $\Delta x/\Delta y$.
+
+\subsection{Constant function market makers}
+
+By far the most widely used type of AMM is a constant function market maker parametrised by a function $f(x,y)$ of the pool reserves.
+%
+The associated marginal pricing function is 
+\[
+  p(x,y) = \frac{f_x(x,y)}{f_y(x,y)}.
+\]
+If reserves are in state $(x_0,y_0)$, the amount of $B$ tokens paid out in exchange for $\Delta x$ $A$ tokens is
+\[
+  \Delta y = \int_{x_0}^{\Delta x} p(x,y(x))dx - y_0
+\]
+where $y(x)$ is determined by the corresponding differential equation $y'(x) = p(x,y(x))$ and the initial conditions $y(x_0)=y_0$.
+
+A practical implementation of market orders on a CFMM must have a computationally efficient algorithm for computing $\Delta y$ given $\Delta x$.
+%
+On the other hand, to decide if a given swap $(\Delta x, \Delta y)$ will be accepted by a CFMM, it is enough to compute the invariant $f(x+\Delta x,y+\Delta y)$.
+
+\subsection{Liquidity provider costs}
+
+The CFMM quote is not automatically updated when changes occur on other markets. 
+%
+Rather, price updates are supplied by arbitrageurs who trade on the CFMM in such a way as to push the pricing into alignment with external markets. 
+
+This trading activity also has the effect of adjusting the balance of assets in the pool, computed in terms of external market prices, towards an equilbrium that depends on the invariant. For example, with Uniswap's constant product formula $f(x,y)=xy$, the equilibrium balance is 50-50, that is, $px=y$.
+
+LPs effectively pay for this adjustment service by trading at unfavourable prices. \marginpar{\fbox{cite}}
+%
+The amount they pay depends only on the external price movement.
+%
+In particular, there is no room for price updaters to compete with one another on the basis of reducing cost to LPs; rather, all arbitrageur competition is at the infrastructure layer and excess rewards tend to be absorbed either by consensus nodes or by middleware services that assemble blocks or partial blocks.
+
+\subsection{Automated market makers with a price feed}
+
+The issue of uncontrolled LP losses to adverse selection could be alleviated if price updates from external markets could be supplied by another channel, so that the marginal pricing function could depend on inputs other than reserves:
+\[
+  p = p(x,y;p_\mathrm{ext}).
+\]
+%
+In blockchain applications, such channels are called \emph{price oracles}. \marginpar{\fbox{cite}}
+%
+The most obvious choice for such a function is
+\[
+  p(x,y;p_\mathrm{ext}) = p_\mathrm{ext},
+\]
+so that the AMM simply quotes the oracle price.
+%
+If we black-box the data source and assume that it provides no-arbitrage prices, then such an AMM would indeed be protected from adverse selection.
+
+However, as is well-known, oracles in the field are fallible.
+%
+They are vulnerable to bugs and deliberate attacks at each stage of the data pipeline.
+%
+Oracles that provide prices that anyone can trade against are a particularly attractive vector for sabotage, both because of the potential for financial gain and because, in the case of a manipulated data source, of the difficulty in establishing that an attack has even occurred. \marginpar{\fbox{cite}}
 
 \section{Architecture}
 
+Our model for a batch auction system is the CoW protocol on Ethereum.
+%
+The CoW protocol consists of a set of off-chain entities that we collectively refer to as \emph{CoW services} and a system of Ethereum smart contracts called the \emph{CoW contracts}. The details of the internal architecture of these aggregations is not discussed here.
+
+Schematically, the CoW algorithm runs as follows:
+\begin{enumerate}
+  \item 
+    Traders send orders to an off-chain order book server where they are tracked in a database.
+    
+  \item 
+    A set of offchain entities called \emph{solvers} query the database and attempt to construct a \emph{solution}, that is, an Ethereum transaction that collectively settles all user orders at a fixed price vector $\vec{p}$ (the uniform clearing price).
+    This transaction may contain arbitrary Ethereum message calls.
+    
+  \item
+    Every batch interval, solutions are validated by simulating against a recently observed chain state and ranked according to a utility function.
+    %
+    The utility function measures the total marginal utility of user orders filled by the solution in terms of the difference between the limit price and the fill price.
+    %
+    Utilities of orders denominated in different tokens are aggregated using prices on external markets.
+    
+  \item
+    The solver with the winning solution calls the \texttt{settle()} function on the CoW settlement contract, which executes their solution.
+    
+  \item
+    Misbehaviour is assessed socially. Slashing punishments can be triggered by a vote of the CoW DAO.
+\end{enumerate}
+\begin{figure}
+  \begin{center}
+    \includegraphics{diagrams/cow2.drawio.pdf}
+    \caption{CoW procotol execution. CoW services accumulate orders and batches are settled (at most) every 30 seconds.}
+  \end{center}
+\end{figure}
+
+An AMM whose quote depends on the UCP of the CoW batch auction needs to have at least the following structures:
+\begin{itemize}
+  \item A way for traders to submit orders.
+  \item A way for would-be LPs to add or remove liquidity.
+  \item A communication channel $\mathcal{O}$ connecting Feedlot with the CoW contracts or services along which can be communicated the UCP.
+\end{itemize}
+Since the last item is the distinguishing feature of Feedlot AMMs, in this section we focus on the design of this channel.
+
+\subsection{Synchronisation}
+
+A batch auction system needn't be synchronised with the blockchain.
+%
+There may not be an auction every block, and even if there is, not every token pair traded on the BAS need necessarily appear in the batch.
+%
+This is the case for CoW: auctions are roughly every 30 seconds, and sometimes no auction occurs for hours at a time.
+%
+Therefore, a fresh batch auction price might not be available at the point that a trader wishes to trade on feedlot.
+
+If the Feedlot quote price is to depend on the price of a CoW batch auction, then, there are only two possibilities:
+\begin{enumerate}
+  \item The quote function uses a stale CoW price (poll model).
+  \item The market only settles trades at the same time as the batch auction (subscription model).
+\end{enumerate}
+These two options are analogous to what in the blockchain oracles literature have been called the \emph{pull} and \emph{push} models, respectively \cite{heiss2019oracles,muhlberger2020foundational}.
+
+In either case, CoW services can guarantee zero latency updates of the UCP by writing into the channel atomically together with the batch execution transaction. 
+%
+This would require minor modifications to CoW's offchain components so that they call a wrapper contract that both triggers the CoW settlement and publishes a price to the on-chain oracle.
+%
+It does not require any changes to CoW's onchain components.
+%
+\begin{figure}
+  \begin{center}
+    \vspace{2ex}
+    \includegraphics{diagrams/wrapper.drawio.pdf}
+    \caption{Atomic execution of the batch solution and publication of the UCP. The ordering of (2) and (3) can be reversed.}
+  \end{center}
+\end{figure}
+%
+Whether the UCP is updated before or after the settlement affects only how Feedlot behaves for orders placed in the winning solution itself, with the details depending on the synchrony model for Feedlot; see \S\ref{solution-on-feedlot}.
+%
+Orders that arrive at Feedlot outside the batch are not affected by this ordering.
+
+What could be considered a third option is to fall back on another algorithm in case no price is available. 
+%
+Since that essentially amounts to not trading on Feedlot, and could easily be implemented at a higher layer, we don't discuss that here.
+
+\subsubsection{Poll model}
+
+In this model, CoW writes the UCP vector to the channel every time there is a batch. Meanwhile, Feedlot AMMs query the price whenever they have to settle an order.
+%
+There is no synchronisation between these two tasks.
+%
+One write is needed per batch per product, and one read is needed per trade on Feedlot.
+%
+These operations being relatively cheap, it would be reasonable to implement this type of channel as an on-chain oracle.
+%
+\begin{figure}
+  \begin{center}
+    [PLACEHOLDER]%\includegraphics{diagrams/poll.drawio.pdf}
+    \caption{Polling oracle. Feedlot AMM executions are not synchronised with CoW batches.}
+  \end{center}
+\end{figure}
+%
+A variant approach is to aggregate UCPs to produce, for example, time-weighted average prices. This is the approach taken by Uniswap's oracle service \cite{adams2020uniswap}.
+
+\subsubsection{Subscription model}
+
+In this approach, orders arriving at Feedlot are accumulated in an order book.
+%
+All trades are executed when there is a CoW batch; for atomicity guarantees, the CoW batch and the Feedlot queue should be executed within the same message call.
+\begin{figure}
+  \begin{center}
+    [PLACEHOLDER]%\includegraphics{diagrams/sub.drawio.pdf}
+    \caption{Subscription oracle. Feedlot AMM executions are triggered when a new price is published.}
+  \end{center}
+\end{figure}
+
+As with any order book based protocol, the order book itself would potentially be quite expensive to maintain on the Ethereum chain.
+%
+It is beyond the scope of this report to discuss approaches for optimising trust model and cost-effectiveness of off-chain order books.
+%
+Pragmatically, a reasonable approach would be to maintain the order book in the same place as the order book for the CoW batch auction, which at time of writing is a set of servers maintained by the CoW team.
+
+\subsection{Can the batch itself settle on Feedlot?}
+\label{solution-on-feedlot}
+
+Certain configurations would allow the solution to both settle orders on Feedlot and quote it a price.
+%
+The solver's objective is to get the most favourable price possible for its users, so naturally it will quote the least favourable price that Feedlot will accept.
+%
+Naturally, allowing an entity to trade against the AMM at any price it chooses is trivially exploitable to the detriment of LPs, and so special care has to be taken to address this case.
+
+
+\subsubsection{Poll model}
+
+In the poll-based model, 
+\begin{itemize}
+  \item If the UCP is updated \emph{after} the batch, the solution trades with a stale price.
+  \item If the UCP is updated \emph{before} the batch, the solution trades at the price quoted by the solver.
+\end{itemize}
+The interesting case is the second one. 
+%
+Assuming solutions are simulated exactly as they would run on-chain, a solver could quote any price at all and have it execute successfully against Feedlot.
+%
+The solver's objective is to get the most favourable price possible for its users, so naturally it will quote the least favourable price that Feedlot will accept.
+%
+Naturally, allowing an entity to trade against the AMM at any price it chooses is trivially exploitable to the detriment of LPs.
+%
+Thus, if this approach were to be pursued, a special mechanism would have to implemented where Feedlot is specifically excluded from simulation.
+
+If Feedlot's pricing function is bounded below independently of the UCP --- for instance if it imposes a lower bound from a hardcoded preference curve or aggregate of external market prices --- then this actually eliminates the dependence of pricing on the UCP.
+
+\subsubsection{Subscription model}
+
+Batch solutions must settle immediately, so the success of the solution cannot depend on trading on an AMM that enqueues orders for execution at a later time.
+%
+However, a batch can be used to atomically execute any message call.
+%
+A solver could therefore use the following strategy:
+\begin{enumerate}
+  \item Fill orders using private liquidity.
+  \item Enqueue orders in the opposite direction on Feedlot.
+\end{enumerate}
+Financially, this amounts to hedging the trade in step 1.~with a forward contract with expiry at the next batch.
+%
+In this way, Feedlot could act as a kind of repo market for solvers.
+
 \section{Cryptoeconomic security}
 
-The following inequality must be satisfied:
-\[ \Delta_p \cdot\Vol_\mathrm{COW} > \Delta_p\cdot \Vol_\mathrm{feedlot} + P_\mathrm{ext}(\Delta_p)  \]
+A price oracle is a data source $\mathcal{O}$ from which a smart contract may query prices for a market order 
+\[
+  p \leftarrow \oracle (t_\mathrm{in},t_\mathrm{out},\sigma,r)
+\]
+where $t_\mathrm{in/out}$ denotes the in/out token, $\sigma\in\{\mathrm{BUY},\mathrm{SELL}\}$ is the direction, and $r$ is the amount (of $t_\mathrm{in}$ for SELL orders, $t_\mathrm{out}$ for BUYs).
+%
+The oracle is said to be \emph{truthful} if the prices thereby obtained are free from arbitrage.
+
+Assuming correct implementation, oracles can fail in two ways:
+\begin{itemize}
+  \item Inaccurate or unreliable data source.
+  \item Failure to faithfully communicate the value from the data source.
+\end{itemize}
+In the present context, fidelity of the communication of value is guaranteed by non-falsifiability of on-chain execution.
+
+\subsection{Truthfulness of pricing data}
+
+We say that the price $p$ is \emph{realisable} at a volume $V$ of the in token and chain state $\phi$ if it is possible to buy $V$ $A$ tokens for $pV$ $B$ tokens in state $\phi$ (for whom?).
+%
+This should be a realisation of the notion of `truthfulness' discussed in \cite{heiss2019oracles}.
+
+If CoW solver prices are not truthful, the solver must settle the trade with their own private liquidity held in bond by CoW DAO.
+%
+Hence, a posteriori, CoW solver prices are truthful for the solver at the state immediately before the batch and at the volume traded in the batch.
+
+It is worth noting that merely simulating executions on-chain (and reverting all changes at the end) is sufficient to verify realisability of the price vector.
+
+\subsection{Manipulation resistance}
+
+A price oracle based trading system is \emph{$\Delta$-manipulation resistant} if
+\[
+  V\cdot (\tilde p - p) + \Delta < C(\mathcal{O}; p,\tilde{p})
+\]
+where $C(\mathcal{O}; p,\tilde{p})$ is the cost to effect a change in the oracle price from $p$ to $\tilde{p}$.
+%
+In order to make statements about this notion of manipulation resistance, it is necessary to at least be able to lower bound the cost of manipulation with a concrete model.
+
+It is important to note that, intuitively, a manipulated price may still be \emph{realisable}: a manipulator genuinely offers liquidity at off-market prices in order to effect certain behaviour in systems that depend on price feeds from these markets.
+%
+It is generally not straightforward to even define price manipulation in general, as this requires insights into the utility function of the alleged manipulator.
+
+Hence, for $D$-manipulation resistance, at least the following inequality must be satisfied:
+\[ \Delta_p \cdot\Vol_\mathrm{COW} > \Delta_p\cdot \Vol_\mathrm{feedlot} + D \]
 where:
 \begin{itemize}
   \item $\Delta_p$ is the difference between the fair market price and the manipulated price.
@@ -98,6 +396,8 @@ The best we can hope to do is to ensure that
   \Vol_\mathrm{COW} \gg \Vol_\mathrm{feedlot}
 \]
 and that it is difficult to guarantee atomic execution on both the COW batch and feedlot markets in opposite directions.
+
+
 
 \section{The inventory problem}
 

@@ -1,5 +1,5 @@
 
-\usepackage[style=authoryear]{biblatex}
+\usepackage[style=draft]{biblatex}
 \setcounter{biburllcpenalty}{1}   % freely break URLs at lowercase
 
 % use \addbibresource to register .bib databases
@@ -15,13 +15,8 @@
 % loads etoolbox
 % Use \nopp to suppress p. pp. in postnote. 
 % Alternatively, change pagination field in bib entry.
-% For arXiv compatibility require versions:
-%  .bbl format 2.8 biblatex 3.7 Biber 2.7
-%  (as of May 2020, arXiv uses TeXLive 2016)
 
 \usepackage{csquotes} % prevents a warning for using biblatex with babel
-
-
 
 \DeclareBibliographyDriver{eprint}{%
   \usebibmacro{bibindex}%
@@ -56,4 +51,5 @@
     {\usebibmacro{related:init}%
      \usebibmacro{related}}
     {}%
-  \usebibmacro{finentry}}
+  \usebibmacro{finentry}%
+}
