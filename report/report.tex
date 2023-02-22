@@ -4,8 +4,13 @@
 \input{layout}
 
 \usepackage{graphicx}
-
   
+\usepackage{amsthm}
+\theoremstyle{remark}
+\newtheorem*{example}{Example}
+
+\newcommand{\defeq}{\mathrel{\vcenter{\hbox{\scriptsize:}}\!=}} % :=
+\newcommand{\eqdef}{\mathrel{=\!\vcenter{\hbox{\scriptsize:}}}} % =:
 
 %
 %%% CROSS REFERENCING %%%%%%%%%%%%%%%%%%%%%%
@@ -70,7 +75,10 @@ Feedlot AMMs should satisfy the following constraints:
     Moreover, it should not be possible to substantially offset the cost of manipulating the CoW UCP (for any reason) by trading on a feedlot AMM.
 
   \item 
-    Wherever possible, feedlot should use incentive-compatible mechanisms to ensure correct operation, without needing to fall back on social adjudication procedures.    
+    Wherever possible, Feedlot should use incentive-compatible mechanisms to ensure correct operation, without needing to fall back on social adjudication procedures.    
+    
+  \item
+    Feedlot provides a new revenue stream for CoW protocol via oracle fees.
   
 \end{itemize}
 
@@ -121,13 +129,13 @@ If a trade occurs of $\Delta x$ $A$ tokens for $\Delta y$ $B$ tokens, the execut
 
 \subsection{Constant function market makers}
 
-By far the most widely used type of AMM is a constant function market maker parametrised by a function $f(x,y)$ of the pool reserves.
+By far the most widely used type of AMM is a constant function market maker (CFMM). A CFMM is defined by its \emph{invariant function} $f(x,y)$, a real-valued function of the pool reserves.
 %
 The associated marginal pricing function is 
 \[
   p(x,y) = \frac{f_x(x,y)}{f_y(x,y)}.
 \]
-If reserves are in state $(x_0,y_0)$, the amount of $B$ tokens paid out in exchange for $\Delta x$ $A$ tokens is
+If reserves are in state $(x_0,y_0)$, the amount of $B$ tokens paid out in exchange for $-\Delta x$ $A$ tokens is
 \[
   \Delta y = \int_{x_0}^{\Delta x} p(x,y(x))dx - y_0
 \]
@@ -152,6 +160,7 @@ The amount they pay depends only on the external price movement.
 In particular, there is no room for price updaters to compete with one another on the basis of reducing cost to LPs; rather, all arbitrageur competition is at the infrastructure layer and excess rewards tend to be absorbed either by consensus nodes or by middleware services that assemble blocks or partial blocks.
 
 \subsection{Automated market makers with a price feed}
+\label{price-feed}
 
 The issue of uncontrolled LP losses to adverse selection could be alleviated if price updates from external markets could be supplied by another channel, so that the marginal pricing function could depend on inputs other than reserves:
 \[
@@ -159,20 +168,60 @@ The issue of uncontrolled LP losses to adverse selection could be alleviated if 
 \]
 %
 In blockchain applications, such channels are called \emph{price oracles}. \marginpar{\fbox{cite}}
-%
-The most obvious choice for such a function is
+
+\begin{example} The most obvious choice for an oracle-based pricing function is
 \[
   p(x,y;p_\mathrm{ext}) = p_\mathrm{ext},
 \]
 so that the AMM simply quotes the oracle price.
 %
-If we black-box the data source and assume that it provides no-arbitrage prices, then such an AMM would indeed be protected from adverse selection.
+We refer to this as \emph{passthrough} pricing.
+%
+If we black-box the data source and assume that it provides no-arbitrage prices, then such an AMM would indeed be protected from adverse selection. \end{example}
 
 However, as is well-known, oracles in the field are fallible.
 %
 They are vulnerable to bugs and deliberate attacks at each stage of the data pipeline.
 %
 Oracles that provide prices that anyone can trade against are a particularly attractive vector for sabotage, both because of the potential for financial gain and because, in the case of a manipulated data source, of the difficulty in establishing that an attack has even occurred. \marginpar{\fbox{cite}}
+
+Moreover, simply passing through the oracle price offers no control over inventory management.
+%
+In particular, if trading tends to occur more on one side than the other for whatever reason, reserves of the in-demand asset could easily dry out \cite[\S2.2]{garman1976market}.
+%
+In traditional finance, this risk is typically accounted for by adjusting pricing to be more or less favourable depending on whether a trade would push reserves towards or away from the desired inventory \cite{biais2005market}.
+%
+Assuming a typical microeconomic environment with negatively sloped demand curves, order flow naturally skews towards the buy (resp.~sell) side as prices edge below (resp.~above) the market clearing price.
+%
+Equally, one can suppose that a population of arbitrageurs able to trade frictionlessly at the oracle price will effect the desired inventory adjustments.
+
+\begin{example}
+  Suppose we target a reserve balance of 50-50 (computed in terms of the oracle price), setting
+  \[
+    p(x,y;p_\mathrm{ext}) = p_\mathrm{ext}\cdot g\left(p_\mathrm{ext}x/y\right)
+  \]
+  where $g:(0,\infty)\rightarrow(0,\infty)$ is a monotone increasing function such that $g(1) = 1$.
+  %
+  The most basic choice is $g(r)=r$, in which case the price oracle drops out of the formula and we recover the UniswapV2 pricing function $p(x,y;p_\mathrm{ext})=x/y$.
+\end{example}
+
+\begin{example}
+More interesting is to choose a function which has a small or vanishing gradient near $1$. A simple example is
+\[
+  g(r) = \left\{\begin{array}{ll}
+    re^\tau & r \leq e^{-\tau} \\
+    1           & -\tau \leq t \leq \tau \\
+    re^{-\tau} & e^\tau\leq r
+  \end{array}\right.
+\]
+where $\tau >0$ is the `tolerance' of the pool for reserves to deviate from an even balance.
+%
+It is straightforward to compute integrals of these quantities, hence execution prices, analytically. 
+\end{example}
+
+\begin{example}
+  Say something about the stableswap curve. \marginpar{\fbox{todo}}
+\end{example}
 
 \section{Architecture}
 
@@ -204,7 +253,7 @@ Schematically, the CoW algorithm runs as follows:
 \end{enumerate}
 \begin{figure}
   \begin{center}
-    \includegraphics{diagrams/cow2.drawio.pdf}
+    \includegraphics[width=\textwidth * \real{0.8}]{diagrams/cow2.pdf}
     \caption{CoW procotol execution. CoW services accumulate orders and batches are settled (at most) every 30 seconds.}
   \end{center}
 \end{figure}
@@ -243,7 +292,7 @@ It does not require any changes to CoW's onchain components.
 \begin{figure}
   \begin{center}
     \vspace{2ex}
-    \includegraphics{diagrams/wrapper.drawio.pdf}
+    \includegraphics[width=\textwidth * \real{0.8}]{diagrams/wrapper.pdf}
     \caption{Atomic execution of the batch solution and publication of the UCP. The ordering of (2) and (3) can be reversed.}
   \end{center}
 \end{figure}
@@ -268,7 +317,8 @@ These operations being relatively cheap, it would be reasonable to implement thi
 %
 \begin{figure}
   \begin{center}
-    [PLACEHOLDER]%\includegraphics{diagrams/poll.drawio.pdf}
+    \vspace{1ex}
+    \includegraphics[width=\textwidth * \real{0.8}]{diagrams/poll.pdf}
     \caption{Polling oracle. Feedlot AMM executions are not synchronised with CoW batches.}
   \end{center}
 \end{figure}
@@ -279,10 +329,10 @@ A variant approach is to aggregate UCPs to produce, for example, time-weighted a
 
 In this approach, orders arriving at Feedlot are accumulated in an order book.
 %
-All trades are executed when there is a CoW batch; for atomicity guarantees, the CoW batch and the Feedlot queue should be executed within the same message call.
+All trades are executed when there is a CoW batch.
 \begin{figure}
   \begin{center}
-    [PLACEHOLDER]%\includegraphics{diagrams/sub.drawio.pdf}
+    \includegraphics{diagrams/sub.pdf}
     \caption{Subscription oracle. Feedlot AMM executions are triggered when a new price is published.}
   \end{center}
 \end{figure}
@@ -292,6 +342,12 @@ As with any order book based protocol, the order book itself would potentially b
 It is beyond the scope of this report to discuss approaches for optimising trust model and cost-effectiveness of off-chain order books.
 %
 Pragmatically, a reasonable approach would be to maintain the order book in the same place as the order book for the CoW batch auction, which at time of writing is a set of servers maintained by the CoW team.
+\begin{figure}
+  \begin{center}
+    \includegraphics{diagrams/sub-merged.pdf}
+    \caption{Integrated oracle with offchain order queue. Feedlot AMM executions are triggered when a new price is published.}
+  \end{center}
+\end{figure}
 
 \subsection{Can the batch itself settle on Feedlot?}
 \label{solution-on-feedlot}
@@ -320,7 +376,32 @@ Naturally, allowing an entity to trade against the AMM at any price it chooses i
 %
 Thus, if this approach were to be pursued, a special mechanism would have to implemented where Feedlot is specifically excluded from simulation.
 
-If Feedlot's pricing function is bounded below independently of the UCP --- for instance if it imposes a lower bound from a hardcoded preference curve or aggregate of external market prices --- then this actually eliminates the dependence of pricing on the UCP.
+Let us discuss, and dismiss, in turn a few approaches to making this work:
+\begin{itemize}
+  \item 
+    Bound Feedlot's pricing function below independently of the UCP. For example, accept a trade only if it offers better pricing for the pool than some hardcoded aggregate of prices from whitelisted external markets.
+    %
+    Then rational solvers will always trade at exactly this lower bound.
+    %
+    This eliminates the dependence of pricing on the UCP.
+    
+  \item
+    Adjust the solution objective to some strictly convex function that takes into account utility of the pool as well as active traders.\footnote{If it isn't \emph{strictly} convex, solvers will be indifferent between delivering utility to traders or the pool.}
+    %
+    The objective function will have to be normalised so that, independently of absolute price, it achieves some desired balance between pool and trader utility.
+    %
+    Clearly, this price normalisation cannot be derived from the price quoted by solvers, because as before they would then be free to set it arbitrarily.
+    %
+    Hence, an auxiliary price oracle is needed.
+    
+  \item
+    Allow solutions that successfully simulate on markets other than Feedlot to actually settle instead on Feedlot, at the price that was realisable on those markets.
+    %
+    This has the effect of making price manipulation costless: solvers can provide their own liquidity at any price, knowing that they will not be held to trading at that price, this burden ultimately falling on Feedlot LPs.
+    
+\end{itemize}
+It is possible that some combination of these and other approaches could allow solvers to safely both trade and quote on the Feedlot liquidity pool.
+
 
 \subsubsection{Subscription model}
 
@@ -339,7 +420,7 @@ In this way, Feedlot could act as a kind of repo market for solvers.
 
 \section{Cryptoeconomic security}
 
-A price oracle is a data source $\mathcal{O}$ from which a smart contract may query prices for a market order 
+A price oracle is a data source $\oracle$ from which a smart contract may query prices for a market order 
 \[
   p \leftarrow \oracle (t_\mathrm{in},t_\mathrm{out},\sigma,r)
 \]
@@ -356,70 +437,157 @@ In the present context, fidelity of the communication of value is guaranteed by 
 
 \subsection{Truthfulness of pricing data}
 
-We say that the price $p$ is \emph{realisable} at a volume $V$ of the in token and chain state $\phi$ if it is possible to buy $V$ $A$ tokens for $pV$ $B$ tokens in state $\phi$ (for whom?).
+We say that the price $p$ is \emph{realisable} for an agent $I$ at a volume $V$ of the in token and chain state $\phi$ if it is possible for $I$ to buy $V$ $A$ tokens for $pV$ $B$ tokens in state $\phi$.
 %
-This should be a realisation of the notion of `truthfulness' discussed in \cite{heiss2019oracles}.
+This is a way to make sense of the `truthfulness' property for oracles sketched in \cite{heiss2019oracles}.
 
-If CoW solver prices are not truthful, the solver must settle the trade with their own private liquidity held in bond by CoW DAO.
+If CoW solver prices are not realisable, the solver must settle the trade with their own private liquidity held in bond by CoW DAO.
 %
-Hence, a posteriori, CoW solver prices are truthful for the solver at the state immediately before the batch and at the volume traded in the batch.
+A posteriori, CoW solver prices are realisable for the solver at the state immediately before the batch and at the volume traded in the batch.
+%
+That is, the structure of the CoW batch auction itself guarantees that the UCP vector is realisable at the volume traded in the batch.
 
 It is worth noting that merely simulating executions on-chain (and reverting all changes at the end) is sufficient to verify realisability of the price vector.
 
 \subsection{Manipulation resistance}
 
-A price oracle based trading system is \emph{$\Delta$-manipulation resistant} if
+Wherever economic decisions are made based on the output of an oracle $\mathcal{O}$, there lies an incentive to effect changes in the value published by $\mathcal{O}$ in order to influence those decisions. 
+%
+In few settings is this incentive more transparent than the present case of a price oracle coupled with an automated market that offers to trade at or near that price.
+%
+If, for example, some party is able to manipulate $\mathcal{O}$ at a cost $C_\mathrm{manip}$ so that it publishes a price $p$ that is strictly less than a price $p_\mathrm{ext}$ realisable on some other market, then a strategy of doing so and then buying a quantity $V$ of the risky asset on Feedlot yields a profit of
 \[
-  V\cdot (\tilde p - p) + \Delta < C(\mathcal{O}; p,\tilde{p})
+  V\cdot (p_\mathrm{ext}-p) - C_\mathrm{manip}.
 \]
-where $C(\mathcal{O}; p,\tilde{p})$ is the cost to effect a change in the oracle price from $p$ to $\tilde{p}$.
+Even if this quantity is negative, trading on Feedlot in this way \emph{offsets} the cost of manipulation, which may still be strategically optimal because of other decisions contingent on the output of $\oracle$.
 %
-In order to make statements about this notion of manipulation resistance, it is necessary to at least be able to lower bound the cost of manipulation with a concrete model.
+Note that this type of activity does not undermine the fidelity of the oracle itself: a manipulated price may still be realisable.
 
-It is important to note that, intuitively, a manipulated price may still be \emph{realisable}: a manipulator genuinely offers liquidity at off-market prices in order to effect certain behaviour in systems that depend on price feeds from these markets.
+In general, it is difficult to distinguish price manipulation from other types of economic activity that affects prices \cite{kyle2008define, zhang2022competition}.
 %
-It is generally not straightforward to even define price manipulation in general, as this requires insights into the utility function of the alleged manipulator.
-
-Hence, for $D$-manipulation resistance, at least the following inequality must be satisfied:
-\[ \Delta_p \cdot\Vol_\mathrm{COW} > \Delta_p\cdot \Vol_\mathrm{feedlot} + D \]
-where:
-\begin{itemize}
-  \item $\Delta_p$ is the difference between the fair market price and the manipulated price.
-  \item $\Vol_\mathrm{COW}$, resp.~$\Vol_\mathrm{feedlot}$ is the total volume on COW, resp.~Feedlot, for the pair.
-  \item $P_\mathrm{ext}$ is the profit to be made from manipulating the price by $\Delta_p$ on external markets.
-\end{itemize}
-
-It is not feasible to estimate $P_\mathrm{ext}(p)$ for all time, and the developers of COW protocol can not reasonably expect to have any control on how COW price feeds are used in offchain markets.
+However, it is quite straightforward to define \textbf{manipulation resistance}: a game is manipulation resistant if the cost of effecting a change in the oracle price away from the prevailing market price is greater than the marginal profit that can be made by exploiting such a price change:
 %
-The best we can hope to do is to ensure that
 \[
-  \Vol_\mathrm{COW} \gg \Vol_\mathrm{feedlot}
+  C_\mathrm{manip}(V,p,p_\mathrm{ext}) \gg U(\sigma;p) - U(\sigma';p_\mathrm{ext}).
 \]
-and that it is difficult to guarantee atomic execution on both the COW batch and feedlot markets in opposite directions.
+Here $\sigma$ is a strategy that is optimal at oracle price $p$ and $\sigma'$ is an optimal strategy at oracle price $p_\mathrm{ext}$.
 
-
-
-\section{The inventory problem}
-
-Apart from trading fees and price updates, Uniswap or Balancer arbitrageurs provide a kind of portfolio management service to LPs.
-%
-This approach to portfolio management may be highly efficient, but it suffers from some problems:
+To analyse this property concretely, it is necessary to have models for the strategy space.
 \begin{itemize}
   \item 
-    There is no room for competition on price to deliver this service: the cost to LPs is fixed in terms of the CFMM invariant, the initial reserves, and the price change.
+    To cause the CoW UCP to be equal to $p<p_\mathrm{ext}$ at volume $V$, it is necessary and sufficient to cause a volume $V$ of the risky asset to be available for purchase by a solver at price $p$.
     %
-    Arbitrageurs compete to rebalance reserves on the basis of speed or bribes; the proceeds of this competition go to infrastructure providers rather than LPs.
+    Ignoring second-order effects such as the reaction of other market participants to a price change, the basic cost of this is $V'\cdot |p_\mathrm{ext}-p|$, where $V'\leq V$ is the volume of user orders in the batch not placed by the manipulator.
     
-  \item
-    Portfolio management and price updates are bundled together in the same operation. There is no scope for these services to be priced or managed separately.
+  \item 
+    To model the marginal proceeds of manipulation, we consider only the direct profits from trading on Feedlot at favourable prices, that is,
+    \[
+      V_\mathrm{Feedlot}\cdot\left|p-p_\mathrm{ext}\right|
+    \]
+    where $V_\mathrm{Feedlot}$ is the amount traded.
+    %
+    Other profits from as-yet unrealised uses of $\oracle$ are difficult to predict.
+    %
+    CoW or would-be Feedlot developers may have some ability to constrain, or at least channel, decision-making based on $\oracle$ by restricting on-chain access.
+    %
+    However, the feed would still be visible to anyone with access to an Ethereum node.
     
 \end{itemize}
+With these models, the essential condition for manipulation resistance is
+\[
+  V_\mathrm{Feedlot} < V'_\mathrm{CoW}.
+\]
+If $V'_\mathrm{CoW}$ can be estimated, this inequality can be enforced in the form of a volume limit for Feedlot.
+%
+Unfortunately, it is hard to calculate $V'$ in practice, because orders owned by an agent following a manipulation strategy cannot easily be distinguished from the orders of other agents.
+%
+The potential for low-cost wash trading means that in general, it need not be possible to estimate $V'$ in terms of $V$.
 
-So far, we have not discussed any analogous mechanism for feedlot LPs.
+\section{Economic impact}
+
+\subsection{For LPs}
+In \S\ref{price-feed}, we characterised the introduction of a price feed to our AMM pricing function as a way to mitigate or prevent LP losses due to adverse selection.
+%
+Can we quantify the effects of this mitigation in practice?
+
+In \cite{milionis2022automated}, the authors introduce a framework to quantify losses of CFMM LPs to adverse selection that depends on an external market price $P$.
+%
+Adapting this framework to discrete time and with the CoW UCP playing the r\^ole of the external market price, we can define the \emph{CoW-based loss-versus-rebalancing} as
+\[
+  \mathrm{LVR}_n \defeq R(P_n) - V(P_n)
+\]
+where:
+\begin{itemize}
+  \item $P_n$ is the UCP of the $n$th CoW batch;
+  \item $V(P_n)$ is the optimal CFMM pool value at an external market price of $P_n$;
+  \item 
+    $R(P_n) = V_0 + \sum_{i=1}^n y^*(P_n)\cdot (P_n-P_{n-1})$ is the value of the self-financing rebalancing portfolio at the time of the $n$th CoW batch, where rebalances take place only at CoW batch times.
+    %
+    (If trading fees are negligible, path-independence means that it doesn't actually matter when rebalancing takes place.)
+    
+\end{itemize}
+Discrete-time analogues of the arguments of \emph{op.~cit}.~show that this is a non-negative and non-decreasing process.\footnote{We lose the predictability property, because of course, the discrete-time analogue of a diffusion process is not predictable.} 
+%
+In continuous time, the quantity can be expressed in terms of the instantaneous square volatility $\sigma^2(P)$ and $V''(P)>0$; one can derive similar, though uglier, formulas for the discrete case.
+
+If Feedlot uses passthrough pricing and accepts trades in such a way that its reserves track the rebalancing portfolio, then $R_n$ can also be interpreted as the portfolio value of a Feedlot LP.
+%
+That is, $\mathrm{LVR}_n$ is the difference in performance between a Feedlot LP and a CFMM LP.
+%
+This is contingent on a sufficient `uninformed' order flow arriving at Feedlot for it to track the reference portfolio by selectively accepting trades.
+
+\
+
+\begin{center}[DATA STUDIES GO HERE]\end{center}
+
+\subsection{For traders}
+
+Feedlot LPs take up a short position on a kind of option to trade at a certain oracle price. 
+%
+But by construction, this price is also realisable on other markets; that is, this optionality already exists `naturally.'
+%
+Why then should traders be interested in purchasing this product?
+
+\begin{itemize}
+  \item 
+    \emph{Protection.} By trading along with the CoW batch, the risk of price changes between commitment and execution time (whether due to `natural' variability or deliberate attack) is socialised across the whole CoW/Feedlot execution.
+    %
+    Traders on CoW itself also enjoy this benefit.
+    
+  \item
+    \emph{Spread}. User orders on the CoW batch auction employ solvers to actively seek out favourable prices. On the other hand, market orders on Feedlot simply wait for someone on CoW to ask for a price for that pair and then take advantage of the result.
+    %
+    Feedlot LPs do no price-finding work, and depending on how the liquidity curve is configured, may also enjoy portfolio management services (at the cost of unpredictable execution prices for users).
+    %
+    Hence, Feedlot trading fees (or equivalently, the bid-ask spread) must be cheaper than the active service provided by CoW protocol.
+
+\end{itemize}
 
 \section{Conclusion}
 
-This was a success.
+A team wishing to implement a Feedlot AMM should take great care to ensure that it does not make the CoW UCP an economically viable target for manipulation.
+%
+In \S\ref{security}, we have established that some kind of volume limit is a necessary condition for this.
+%
+However, na\"ively limiting volume in terms of the volume on CoW is not sufficient, since this quantity is itself prone to relatively low-cost manipulation.
+
+\paragraph{Social enforcement}
+The solver itself is the most privileged actor in this game. 
+%
+While this places it in a uniquely powerful position to manipulate CoW prices itself --- and therefore ought to be the subject of particular scrutiny --- it also is uniquely positioned to fight \emph{against} manipulation by arbitraging manipulated prices into line with external markets in its solution.
+%
+However, fighting against manipulation is not necessarily aligned with the objective function currently in effect on CoW protocol.
+%
+As it stands, CoW solvers are already economically exposed to the governance decisions of the CoW DAO.
+
+\paragraph{Incentive-aligned manipulation resistance}
+In some cases, trading against a would-be manipulator may be economically viable even without social enforcement.
+%
+Suppose a wash trader submits a large volume of liquidity orders in both directions.
+%
+Suspecting a manipulation attempt, the solver discards the orders in one direction and himself takes the opportunity to make a large directional trade with no slippage.
+%
+Depending on the market depth, this might be very
 
 \printbibliography
 \end{document}
