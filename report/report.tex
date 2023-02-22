@@ -419,6 +419,7 @@ Financially, this amounts to hedging the trade in step 1.~with a forward contrac
 In this way, Feedlot could act as a kind of repo market for solvers.
 
 \section{Cryptoeconomic security}
+\label{security}
 
 A price oracle is a data source $\oracle$ from which a smart contract may query prices for a market order 
 \[
@@ -436,6 +437,7 @@ Assuming correct implementation, oracles can fail in two ways:
 In the present context, fidelity of the communication of value is guaranteed by non-falsifiability of on-chain execution.
 
 \subsection{Truthfulness of pricing data}
+\label{realisable}
 
 We say that the price $p$ is \emph{realisable} for an agent $I$ at a volume $V$ of the in token and chain state $\phi$ if it is possible for $I$ to buy $V$ $A$ tokens for $pV$ $B$ tokens in state $\phi$.
 %
@@ -450,6 +452,7 @@ That is, the structure of the CoW batch auction itself guarantees that the UCP v
 It is worth noting that merely simulating executions on-chain (and reverting all changes at the end) is sufficient to verify realisability of the price vector.
 
 \subsection{Manipulation resistance}
+\label{manipulation}
 
 Wherever economic decisions are made based on the output of an oracle $\mathcal{O}$, there lies an incentive to effect changes in the value published by $\mathcal{O}$ in order to influence those decisions. 
 %
@@ -465,7 +468,7 @@ Note that this type of activity does not undermine the fidelity of the oracle it
 
 In general, it is difficult to distinguish price manipulation from other types of economic activity that affects prices \cite{kyle2008define, zhang2022competition}.
 %
-However, it is quite straightforward to define \textbf{manipulation resistance}: a game is manipulation resistant if the cost of effecting a change in the oracle price away from the prevailing market price is greater than the marginal profit that can be made by exploiting such a price change:
+However, it is quite straightforward to define \textbf{manipulation resistance}, at least at an intuitive level: a trading game whose payoffs depend on a parameter $p$ is $p$-manipulation resistant if the cost of effecting a change in $p$ away from its `natural' value is greater than the marginal profit that can be made by exploiting such a price change:
 %
 \[
   C_\mathrm{manip}(V,p,p_\mathrm{ext}) \gg U(\sigma;p) - U(\sigma';p_\mathrm{ext}).
@@ -475,9 +478,14 @@ Here $\sigma$ is a strategy that is optimal at oracle price $p$ and $\sigma'$ is
 To analyse this property concretely, it is necessary to have models for the strategy space.
 \begin{itemize}
   \item 
-    To cause the CoW UCP to be equal to $p<p_\mathrm{ext}$ at volume $V$, it is necessary and sufficient to cause a volume $V$ of the risky asset to be available for purchase by a solver at price $p$.
+    To cause the CoW UCP to be equal to $p<p_\mathrm{ext}$ at volume $V_\mathrm{CoW}$, it is necessary and sufficient to make available a volume $V_\mathrm{CoW}$ of the risky asset for purchase by a solver at price $p$.
     %
-    Ignoring second-order effects such as the reaction of other market participants to a price change, the basic cost of this is $V'\cdot |p_\mathrm{ext}-p|$, where $V'\leq V$ is the volume of user orders in the batch not placed by the manipulator.
+    Ignoring second-order effects such as the reaction of other market participants to a price change, the basic cost of this is given by
+    \begin{equation}
+    \label{cost-of-manipulation}
+      V'_\mathrm{CoW}\cdot |p_\mathrm{ext}-p|,
+    \end{equation}
+    where $V'_\mathrm{CoW}\leq V_\mathrm{CoW}$ is the volume of user orders in the batch not placed by the manipulator.
     
   \item 
     To model the marginal proceeds of manipulation, we consider only the direct profits from trading on Feedlot at favourable prices, that is,
@@ -565,29 +573,75 @@ Why then should traders be interested in purchasing this product?
 
 \section{Conclusion}
 
-A team wishing to implement a Feedlot AMM should take great care to ensure that it does not make the CoW UCP an economically viable target for manipulation.
+A safe implementation of a Feedlot AMM on the subscription model would provide traders with cheap trading at up-to-date instantaneous market prices.
 %
-In \S\ref{security}, we have established that some kind of volume limit is a necessary condition for this.
+Unlike traditional static CFMMs, Feedlot protects LPs from adverse selection, while still offering an option to enjoy flexibly priced portfolio management. 
+%
+It would also yield a new revenue stream for CoW protocol in the form of oracle fees.
+
+The question of whether a safe implementation is possible requires further research.
+%
+A team wishing to implement a Feedlot AMM must take great care to ensure that it does not make the CoW UCP an economically viable target for manipulation, inviting harm on Feedlot LPs and users and stakeholders of CoW protocol alike.
+%
+In \S\ref{manipulation}, we have established that some kind of volume controls are a necessary condition for manipulation resistance.
 %
 However, na\"ively limiting volume in terms of the volume on CoW is not sufficient, since this quantity is itself prone to relatively low-cost manipulation.
+%
+Furthermore, if the scale of traditional derivative markets is anything to go by, there is likely to be interest in increasing the allowable volume to possibly as much as several times the volume of the CoW batch itself.
 
-\paragraph{Social enforcement}
-The solver itself is the most privileged actor in this game. 
-%
-While this places it in a uniquely powerful position to manipulate CoW prices itself --- and therefore ought to be the subject of particular scrutiny --- it also is uniquely positioned to fight \emph{against} manipulation by arbitraging manipulated prices into line with external markets in its solution.
-%
-However, fighting against manipulation is not necessarily aligned with the objective function currently in effect on CoW protocol.
-%
-As it stands, CoW solvers are already economically exposed to the governance decisions of the CoW DAO.
+We propose three basic avenues of investigation
+\begin{itemize}
+  \item
+    \emph{Visibility.}
+    Efforts should be made to make manipulation \emph{detectable} if it occurs.
+    %
+    There are a number of immediate difficulties with this endeavour:
+    \begin{itemize}
+      \item 
+        It is not straightforward to even define the notion of manipulation. Widely acknowledged is the necessary component of \emph{intent}. we also need to be able to make sense of the `non-manipulated' price, for which we need insight
+      \item 
+        In pseudonymous blockchain environments, identities are by default not Sybil-resistant. It is not generally possible to prove that two addresses acted in concert, which would be.
+        %
+        This problem could be mitigated by the adoption of a Sybil-resistant authentication system as a requirement for using CoW swap and Feedlot.
+      \end{itemize}
 
-\paragraph{Incentive-aligned manipulation resistance}
+  \item
+    \emph{Make manipulation more expensive.}
+    If a manipulator can reliably effect atomic execution of his manipulation strategy with the CoW/Feedlot batch, then the cost to manipulate is given by the expression (\ref{cost-of-manipulation}).
+    %
+    The only actor who can achieve atomicity with certainty is the solver itself.
+    
+  \item
+    \emph{Constrain the marginal proceeds of manipulation.}
+    
+    
+  \item
+    \emph{Control solver activities.}
+    Solvers, as the most privileged actors in the CoW ecosystem, are inherently particularly resistant to the mitigation heuristics heretofore discussed.
+    %
+    On the other hand, a solver has a Sybil-resistant identity and economic exposure to the CoW DAO in the form of his bond.
+    %
+    Moreover, the CoW DAO has a direct channel to influence the incentive structure of solvers via the batch auction objective function.
+  
+\end{itemize}
+
+    \emph{Social enforcement.} 
+    The solver itself is the most privileged actor in this game. 
+    %
+    While this places it in a uniquely powerful position to manipulate CoW prices itself --- and therefore ought to be the subject of particular scrutiny --- it also is uniquely positioned to fight \emph{against} manipulation by arbitraging manipulated prices into line with external markets in its solution.
+    %
+    However, fighting against manipulation is not necessarily aligned with the objective function currently in effect on CoW protocol.
+    %
+    As it stands, CoW solvers are already economically exposed to the governance decisions of the CoW DAO.
+
+
+\begin{example}
 In some cases, trading against a would-be manipulator may be economically viable even without social enforcement.
 %
 Suppose a wash trader submits a large volume of liquidity orders in both directions.
 %
 Suspecting a manipulation attempt, the solver discards the orders in one direction and himself takes the opportunity to make a large directional trade with no slippage.
-%
-Depending on the market depth, this might be very
+\end{example}
 
 \printbibliography
 \end{document}
