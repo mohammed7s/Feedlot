@@ -68,3 +68,5 @@ MANIFEST
 .conda*/
 .python-version
 /vcow*
+/cow_swap_datastreams_tutorial/subgraph_queries.ipynb
+/cow_swap_datastreams_tutorial/univ3_lp_data.ipynb
