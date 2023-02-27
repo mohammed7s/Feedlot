@@ -50,44 +50,90 @@
 \maketitle
 \printsplash
 
-\paragraph{Purpose of this document}
+\paragraph{Abstract}
 
-This article is a feasibility study for a class of automated market makers (AMMs) that passively provide liquidity at a price based on the uniform clearing price (UCP) of a competitive batch auction.
+This article is a feasibility study for a class of automated market makers (AMMs) that passively provide liquidity at a price based on the uniform clearing price (UCP) of a competitive batch auction such as CoW protocol.
+%
+If implemented properly, liquidity providers on Feedlot AMMs should enjoy protection from the adverse selection that plagues CFMM LPs, and oracle fees could provide a new revenue stream for the batch auction provider itself.
 
-It is not a whitepaper, specification, or proposal, and it makes no claim to exhaustiveness or completeness on any of the topics discussed --- particularly security. 
+This article is not a whitepaper, specification, or proposal, and it makes no claim to exhaustiveness or completeness on any of the topics discussed --- particularly security. 
 %
 Would-be implementers of a feedlot AMM are advised to pursue thorough further investigations of these issues in the context into which they hope to deploy.
 
-\newpage
 \section{Introduction}
 
-Feedlot AMMs should satisfy the following constraints:
+The most widely used type of blockchain market today is the constant function automated market maker (CFMM), whose deployments collectively process trading volume to the value of tens of billions USD per month \cite{buterin2016lets, adams2020uniswap, oneill2023can}.
+%
+A CFMM provides an environment where anyone can deploy funds and passively accept trades in exchange for trading fees.
+%
+Price impact is calculated in terms of the reserves using highly space and time efficient algorithms.
+
+The popularity of the CFMM model has brought to light some basic difficulties.
+%
+In addition to fundamental risk, liquidity providers on CFMMs are exposed to the effects of \textbf{adverse selection}: they incur losses from being forced to accept trades with informed actors at unfavourable prices.  
+%
+Many groups of liquidity providers consistently lose money on their investment \cite{loesch2021impermanent}.
+%
+Meanwhile, the permissionless and public environment in which CFMMs execute exposes na\"ive traders to the activities of MEV bots, who take advantage of the trader's revealed intentions together with the market's deterministic price impact function to manipulate prices and extract value from a pending transaction \cite{zhou2021high, holloway2023value}.
+
+Various schemes have been proposed to address some of the issues associated with fully automated markets \cite{ferreira2022credible, josojo2022mev, nikete2022towards, fleupold2022cow}.
+%
+Some aim to protect users by providing a dedicated channel that provides additional privacy, failure, or ordering guarantees.
+%
+Among these, blockchain implementations of the \emph{RFQ batch auction model} socialise pricing and protection from ordering attacks by settling trades atomically in batches with a \emph{uniform clearing price} (UCP).
+%
+This price is provided by the winner of a competition to find routes for orders that maximise the welfare of their creators.
+
+Another class of proposals adopt the idea of adjusting pricing using an external price feed \cite{dodoex,synthetixlitepaper}.
+%
+If this price feed is sufficiently reliable, passive liquidity providers can mitigate or even entirely avoid losses to adverse selection.
+%
+However, employing such a price feed for trading provides a strong incentive to deliberately skew, interrupt, or otherwise manipulate the published price.
+%
+A typical price feed pipeline has several phases that could fail --- by accident or design --- to preserve the integrity of the published data. 
+%
+Examples of cases where financial losses have occurred as a result of relying on such feeds are plentiful \cite{liu2021first, cryptocat2020how, venus2022luna, eskandari2021sok}.
+
+In this report, we discuss a proposal to use the UCP provided by an RFQ batch auction with on-chain settlement --- specifically, CoW protocol\footnote{\url{https://docs.cow.fi}} --- to adjust the pricing of a liquidity pool.
+%
+The fact that the UCP is used to settle a batch auction means that it has a unique guarantee not shared by other price oracle data sources: it is \emph{realisable} in the sense that it comes with an on-chain proof that it could actually be used to execute trades (at least, before the batch).\footnote{In the language of \cite{suresh2022so}, it is backed by \emph{trade collateral}.}
+
+We give the working name \emph{Feedlot} to a hypothetical AMM based on this model.
+%
+A successful implementation of a Feedlot AMM should have the following properties:
 \begin{itemize}
   \item
-    Feedlot AMM LPs should enjoy cheap portfolio management, some yield, and protection from adverse selection.
+    Liquidity providers should enjoy cheap portfolio management, some yield, and protection from adverse selection.
     
   \item
-    Feedlot AMM traders should enjoy low, predictable fees, control over execution time, and favourable prices at least for trades in the `correct' direction.
+    Traders should enjoy low, predictable fees, control over execution time, and favourable prices at least for trades in the `correct' direction.
     
   \item
-    It should not be economical to manipulate the UCP of the CoW batch auction in order to trade at favourable prices on feedlot.
+    It should not be economical to manipulate the uniform clearing price (UCP) of the CoW batch auction in order to trade at favourable prices on Feedlot.
     
-    Moreover, it should not be possible to substantially offset the cost of manipulating the CoW UCP (for any reason) by trading on a feedlot AMM.
+    Moreover, it should not be possible to substantially offset the cost of manipulating the CoW UCP (for any reason) by trading on a Feedlot AMM.
 
   \item 
-    Wherever possible, Feedlot should use incentive-compatible mechanisms to ensure correct operation, without needing to fall back on social adjudication procedures.    
-    
-  \item
-    Feedlot provides a new revenue stream for CoW protocol via oracle fees.
+    Wherever possible, Feedlot should use incentive-compatible mechanisms to ensure correct operation.
+    %
+    Social adjudication procedures should be employed only as a fallback.
   
 \end{itemize}
+In the remainder of this report, we discuss approaches to implementing an AMM that fulfils these properties. It is structured as follows: in \S\ref{general}, we review general principles of designing CFMMs and pricing oracles; 
+%
+in \S\ref{architecture} we propose architectures, particularly as regards the structure of the channel through which the UCP is communicated to a Feedlot liquidity pool; 
+%
+in \S\ref{security} we review the security implications for CoW and Feedlot of consuming the UCP to execute additional trades;
+%
+finally, in \S\ref{impact} we study from theoretical and empirical perspectives the economic implications for traders and LPs that a functioning Feedlot implementation would entail.
+
 
 \section{General design principles}
-
+\label{general}
 
 \subsection{Definitions}
 
-Our blockchain model is based on Ethereum, and should apply to any blockchain-based state machine with similar principles.
+Our blockchain model is based on Ethereum, and should apply to any blockchain-based state machine with similar principles (for example Gnosis Chain).
 %
 In particular we point out the following assumptions:
 \begin{itemize}
@@ -97,6 +143,7 @@ In particular we point out the following assumptions:
 \end{itemize}
 By a \emph{smart contract system} we mean any kind of on-chain entity or aggregation of entities. In particular, it may mean a single smart contract (e.g.~a Uniswap pool) or a structured collection of interacting smart contracts (e.g.~Uniswap as a whole).
 
+We make use of the following standard terminology:
 \begin{itemize}
 
   \item \emph{Liquidity pool.} Smart contract system that custodies the assets of \emph{liquidity providers} and tracks withdrawal liabilities.
@@ -113,15 +160,11 @@ By a \emph{smart contract system} we mean any kind of on-chain entity or aggrega
   
   \item \emph{Solver.} Agent that provides quotes in competition to settle a batch auction.
   
-  \item \emph{Constant function market maker.} AMM whose pricing function depends only on reserves.
-  
-  \item \emph{No-arbitrage price.} A price $p$ such that it is not possible to to make a 
+  \item \emph{Constant function market maker.} An AMM whose pricing function depends only on reserves.
   
 \end{itemize}
 
-In this article, the pricing provided by an AMM will be a function of state at the time of settlement. In principle it is possible for it to also depend on calldata in the message that triggers the settlement.
-%
-For simplicity, we will mainly consider only pools with two assets $A$ and $B$ whose balances are denoted $(x,y)\in [0,\infty)^2$.
+For simplicity, we will consider only liquidity pools with two assets $A$ and $B$ whose balances are denoted $(x,y)\in [0,\infty)^2$.
 %
 We take token $A$ for the num\'eraire (also called the `quote token'), so that prices are for token $B$ in terms of token $A$.
 %
@@ -129,7 +172,7 @@ If a trade occurs of $\Delta x$ $A$ tokens for $\Delta y$ $B$ tokens, the execut
 
 \subsection{Constant function market makers}
 
-By far the most widely used type of AMM is a constant function market maker (CFMM). A CFMM is defined by its \emph{invariant function} $f(x,y)$, a real-valued function of the pool reserves.
+A constant function market maker (CFMM) is defined by its \emph{invariant function} $f(x,y)$, a real-valued function of the pool reserves.
 %
 The associated marginal pricing function is 
 \[
@@ -151,13 +194,17 @@ The CFMM quote is not automatically updated when changes occur on other markets.
 %
 Rather, price updates are supplied by arbitrageurs who trade on the CFMM in such a way as to push the pricing into alignment with external markets. 
 
-This trading activity also has the effect of adjusting the balance of assets in the pool, computed in terms of external market prices, towards an equilbrium that depends on the invariant. For example, with Uniswap's constant product formula $f(x,y)=xy$, the equilibrium balance is 50-50, that is, $px=y$.
+From a dual perspective, this trading activity has the effect of adjusting the balance of assets in the pool towards the value-minimising point on the level curve, computed in terms of external market prices. 
+%
+For example, with Uniswap's constant product formula $f(x,y)=xy$, the equilibrium balance is 50-50, that is, $px=y$.
 
-LPs effectively pay for this adjustment service by trading at unfavourable prices. \marginpar{\fbox{cite}}
+LPs effectively pay for this adjustment service by trading at unfavourable prices \cite{milionis2022automated}.
 %
-The amount they pay depends only on the external price movement.
+The amount they pay depends only on the external price movement and the second derivative of the optimal pool value function.
 %
-In particular, there is no room for price updaters to compete with one another on the basis of reducing cost to LPs; rather, all arbitrageur competition is at the infrastructure layer and excess rewards tend to be absorbed either by consensus nodes or by middleware services that assemble blocks or partial blocks.
+In particular, there is no room for price updaters to compete with one another on the basis of reducing cost to LPs; rather, all arbitrageur competition is at the infrastructure layer and excess rewards tend to be absorbed either by consensus nodes or by middleware services that assemble blocks or partial blocks \cite{daian2020flash}.
+%
+LPs cannot concentrate liquidity near a single price without exposing themselves to more severe adverse selection impact.
 
 \subsection{Automated market makers with a price feed}
 \label{price-feed}
@@ -167,7 +214,7 @@ The issue of uncontrolled LP losses to adverse selection could be alleviated if 
   p = p(x,y;p_\mathrm{ext}).
 \]
 %
-In blockchain applications, such channels are called \emph{price oracles}. \marginpar{\fbox{cite}}
+In blockchain applications, such channels are called \emph{price oracles} \cite{heiss2019oracles, muhlberger2020foundational, albreiki2020trustworthy}.
 
 \begin{example} The most obvious choice for an oracle-based pricing function is
 \[
@@ -183,7 +230,7 @@ However, as is well-known, oracles in the field are fallible.
 %
 They are vulnerable to bugs and deliberate attacks at each stage of the data pipeline.
 %
-Oracles that provide prices that anyone can trade against are a particularly attractive vector for sabotage, both because of the potential for financial gain and because, in the case of a manipulated data source, of the difficulty in establishing that an attack has even occurred. \marginpar{\fbox{cite}}
+Oracles that provide prices that anyone can trade against are a particularly attractive vector for sabotage, both because of the potential for financial gain and because, in the case of a manipulated data source, of the difficulty in establishing that an attack has even occurred \cite{samczsun2020so, suresh2022so}.
 
 Moreover, simply passing through the oracle price offers no control over inventory management.
 %
@@ -193,7 +240,7 @@ In traditional finance, this risk is typically accounted for by adjusting pricin
 %
 Assuming a typical microeconomic environment with negatively sloped demand curves, order flow naturally skews towards the buy (resp.~sell) side as prices edge below (resp.~above) the market clearing price.
 %
-Equally, one can suppose that a population of arbitrageurs able to trade frictionlessly at the oracle price will effect the desired inventory adjustments.
+If prices slide far enough for arbitrages to appear, one can further suppose that a population of informed traders will rapidly effect the desired inventory adjustments.
 
 \begin{example}
   Suppose we target a reserve balance of 50-50 (computed in terms of the oracle price), setting
@@ -206,24 +253,25 @@ Equally, one can suppose that a population of arbitrageurs able to trade frictio
 \end{example}
 
 \begin{example}
-More interesting is to choose a function which has a small or vanishing gradient near $1$. A simple example is
-\[
-  g(r) = \left\{\begin{array}{ll}
-    re^\tau & r \leq e^{-\tau} \\
-    1           & -\tau \leq t \leq \tau \\
-    re^{-\tau} & e^\tau\leq r
-  \end{array}\right.
-\]
-where $\tau >0$ is the `tolerance' of the pool for reserves to deviate from an even balance.
-%
-It is straightforward to compute integrals of these quantities, hence execution prices, analytically. 
+  More interesting is to choose a function which has a small or vanishing gradient near $1$. A simple example is
+  \[
+    g(r) = \left\{\begin{array}{ll}
+      re^\tau & r \leq e^{-\tau} \\
+      1           & -\tau \leq t \leq \tau \\
+      re^{-\tau} & e^\tau\leq r
+    \end{array}\right.
+  \]
+  where $\tau >0$ is the `tolerance' of the pool for reserves to deviate from an even balance.
+  %
+  It is straightforward to compute integrals of these quantities, hence execution prices, analytically. 
+  
+  More generally, `stableswap' curves used in the wild for liquidity pools with weakly pegged prices can be adapted using this price feed approach to trade volatile assets as well \cite{egorov2019stableswap, port2022mixing}.
+
 \end{example}
 
-\begin{example}
-  Say something about the stableswap curve. \marginpar{\fbox{todo}}
-\end{example}
 
 \section{Architecture}
+\label{architecture}
 
 Our model for a batch auction system is the CoW protocol on Ethereum.
 %
@@ -235,7 +283,8 @@ Schematically, the CoW algorithm runs as follows:
     Traders send orders to an off-chain order book server where they are tracked in a database.
     
   \item 
-    A set of offchain entities called \emph{solvers} query the database and attempt to construct a \emph{solution}, that is, an Ethereum transaction that collectively settles all user orders at a fixed price vector $\vec{p}$ (the uniform clearing price).
+    A set of offchain entities called \emph{solvers} query the database and attempt to construct a \emph{solution}, that is, an Ethereum transaction that collectively settles all user orders at a fixed price vector $\vec{p}$ --- the uniform clearing price.
+    %
     This transaction may contain arbitrary Ethereum message calls.
     
   \item
@@ -243,10 +292,10 @@ Schematically, the CoW algorithm runs as follows:
     %
     The utility function measures the total marginal utility of user orders filled by the solution in terms of the difference between the limit price and the fill price.
     %
-    Utilities of orders denominated in different tokens are aggregated using prices on external markets.
+    Utilities of orders denominated in different tokens are normalised using prices on whitelisted external markets.
     
   \item
-    The solver with the winning solution calls the \texttt{settle()} function on the CoW settlement contract, which executes their solution.
+    The solver with the winning solution calls the \texttt{settle()} function on the CoW settlement contract, which executes their solution, emitting \texttt{Trade} events.
     
   \item
     Misbehaviour is assessed socially. Slashing punishments can be triggered by a vote of the CoW DAO.
@@ -264,7 +313,9 @@ An AMM whose quote depends on the UCP of the CoW batch auction needs to have at 
   \item A way for would-be LPs to add or remove liquidity.
   \item A communication channel $\mathcal{O}$ connecting Feedlot with the CoW contracts or services along which can be communicated the UCP.
 \end{itemize}
-Since the last item is the distinguishing feature of Feedlot AMMs, in this section we focus on the design of this channel.
+The first two components are standard elements of AMM implementation. 
+%
+The last item is the distinguishing feature of Feedlot AMMs, so in this section we focus on the design of this channel.
 
 \subsection{Synchronisation}
 
@@ -421,20 +472,14 @@ In this way, Feedlot could act as a kind of repo market for solvers.
 \section{Cryptoeconomic security}
 \label{security}
 
-A price oracle is a data source $\oracle$ from which a smart contract may query prices for a market order 
-\[
-  p \leftarrow \oracle (t_\mathrm{in},t_\mathrm{out},\sigma,r)
-\]
-where $t_\mathrm{in/out}$ denotes the in/out token, $\sigma\in\{\mathrm{BUY},\mathrm{SELL}\}$ is the direction, and $r$ is the amount (of $t_\mathrm{in}$ for SELL orders, $t_\mathrm{out}$ for BUYs).
-%
-The oracle is said to be \emph{truthful} if the prices thereby obtained are free from arbitrage.
-
-Assuming correct implementation, oracles can fail in two ways:
+Assuming correct implementation, a generic oracle $\oracle$ can fail in two ways:
 \begin{itemize}
   \item Inaccurate or unreliable data source.
   \item Failure to faithfully communicate the value from the data source.
 \end{itemize}
 In the present context, fidelity of the communication of value is guaranteed by non-falsifiability of on-chain execution.
+%
+In this section, we address the reliability of the CoW UCP as a data source in two senses: \emph{realisability} and \emph{manipulation resistance}.
 
 \subsection{Truthfulness of pricing data}
 \label{realisable}
@@ -454,26 +499,31 @@ It is worth noting that merely simulating executions on-chain (and reverting all
 \subsection{Manipulation resistance}
 \label{manipulation}
 
-Wherever economic decisions are made based on the output of an oracle $\mathcal{O}$, there lies an incentive to effect changes in the value published by $\mathcal{O}$ in order to influence those decisions. 
+Wherever economic decisions are made based on the output of an oracle $\mathcal{O}$, there lies an incentive for individual or cooperating actors to deliberately effect changes in the value published by $\mathcal{O}$ in order to influence those decisions. 
 %
 In few settings is this incentive more transparent than the present case of a price oracle coupled with an automated market that offers to trade at or near that price.
 %
-If, for example, some party is able to manipulate $\mathcal{O}$ at a cost $C_\mathrm{manip}$ so that it publishes a price $p$ that is strictly less than a price $p_\mathrm{ext}$ realisable on some other market, then a strategy of doing so and then buying a quantity $V$ of the risky asset on Feedlot yields a profit of
-\[
+If, for example, some party is able to exert control over $\mathcal{O}$ at a cost $C_\mathrm{manip}$ so that it publishes a price $p$ that is strictly less than a price $p_\mathrm{ext}$ realisable on some other market, then a strategy of doing so and then buying a quantity $V$ of the risky asset on Feedlot yields a profit of
+\begin{equation}
+\label{manipulation-profit-example}
   V\cdot (p_\mathrm{ext}-p) - C_\mathrm{manip}.
-\]
-Even if this quantity is negative, trading on Feedlot in this way \emph{offsets} the cost of manipulation, which may still be strategically optimal because of other decisions contingent on the output of $\oracle$.
+\end{equation}
+Even if (\ref{manipulation-profit-example}) is negative, trading on Feedlot in this way \emph{offsets} the cost of manipulation, which may still be strategically optimal because of other decisions contingent on the output of $\oracle$.
 %
 Note that this type of activity does not undermine the fidelity of the oracle itself: a manipulated price may still be realisable.
-
-In general, it is difficult to distinguish price manipulation from other types of economic activity that affects prices \cite{kyle2008define, zhang2022competition}.
 %
-However, it is quite straightforward to define \textbf{manipulation resistance}, at least at an intuitive level: a trading game whose payoffs depend on a parameter $p$ is $p$-manipulation resistant if the cost of effecting a change in $p$ away from its `natural' value is greater than the marginal profit that can be made by exploiting such a price change:
+However, it does constitute a centralising force, and moreover, one that acts in direct opposition to LPs, presumably driving away liquidity.
+
+In general, it is difficult to theoretically distinguish price manipulation from other types of economic activity that affects prices \cite{kyle2008define, zhang2022competition}.\footnote{It is even sometimes disputed whether activities typically deemed `manipulation' are even harmful. In our case, however, the harm associated to this centralisation vector is quite explicit.}
+%
+In our present context, we attempt the following intuitive `definition' of \textbf{manipulation resistance}: a trading game whose payoffs depend on a parameter $p$ is $p$-manipulation resistant if the cost of effecting a change in $p$ away from its `natural' value --- the value that it would assume in equilbrium if the Feedlot AMM did not exist --- is greater than the marginal profit that can be made by exploiting such a price change:
 %
 \[
   C_\mathrm{manip}(V,p,p_\mathrm{ext}) \gg U(\sigma;p) - U(\sigma';p_\mathrm{ext}).
 \]
 Here $\sigma$ is a strategy that is optimal at oracle price $p$ and $\sigma'$ is an optimal strategy at oracle price $p_\mathrm{ext}$.
+%
+This mirrors the approach of \cite{perdue1987manipulation} and that of the United States Grain Futures Administration (\emph{op.~cit}, p.358), which suggests that activities be called manipulative if they would be irrational absent an effect on price.
 
 To analyse this property concretely, it is necessary to have models for the strategy space.
 \begin{itemize}
@@ -511,7 +561,70 @@ Unfortunately, it is hard to calculate $V'$ in practice, because orders owned by
 %
 The potential for low-cost wash trading means that in general, it need not be possible to estimate $V'$ in terms of $V$.
 
+\subsection{Recommendations for further research}
+\label{manipulation-enforcement}
+
+We propose four basic avenues of further investigation on the manipulation problem:
+\begin{itemize}
+  \item
+    \emph{Visibility.}
+    Efforts should be made to precisely define manipulation in the context of CoW and Feedlot and to make activities falling under the definition \emph{detectable} if they occur, especially if carried out by or with the cooperation of solvers.
+    
+    General definitions of price manipulation have long proved elusive \cite{perdue1987manipulation,kyle2008define}.
+    %
+    Common themes are the importance of \emph{intent} --- difficult to establish --- and the concept of an `artificial' price, which is itself difficult to define.
+    %
+    We propose to 
+    
+    A special difficulty that arises in our setting of a pseudonymous blockchain environments is the ease of creating alternate identities that are not visibly connected to one another.
+    %
+    It is not generally possible to prove that the owners of two addresses did or did not act coperatively, which we believe is a prerequisite for establishing intent.
+    %
+    This problem could be mitigated by the adoption of a Sybil-resistant authentication system as a requirement for using CoW swap and Feedlot.
+    
+  \item
+    \emph{Make manipulation more expensive.}
+    If a manipulator can reliably effect atomic execution of his manipulation strategy with the CoW/Feedlot batch, then the cost to manipulate is given by the expression (\ref{cost-of-manipulation}).
+    %
+    The only actor who can achieve atomicity with certainty is the solver itself.
+    
+  \item
+    \emph{Constrain the marginal proceeds of manipulation.}
+    We have proposed volume controls as a method for reducing the extent to which Feedlot can be used to subsidise manipulation.
+    %
+    While a na\"ive volume control in terms of the CoW volume cannot work by itself, a more sophisticated approach might.
+    %
+    We propose two methods for further exploration:
+    \begin{itemize}
+      \item In a similar manner to what we have done for price manipulation, develop a quantitative model to estimate the cost to manipulate $V_\mathrm{CoW}$ and devise methods to lower bound this.
+      \item Supplement this approach with ad hoc absolute volume rules that can be set by the DAO.
+    \end{itemize}
+    
+    
+  \item
+    \emph{Control solver activities.}
+    Solvers, as the most privileged actors in the CoW ecosystem, are inherently particularly resistant to the mitigation heuristics heretofore discussed.
+    %
+    On the other hand, a solver has a Sybil-resistant identity and economic exposure to the CoW DAO in the form of his bond.
+    %
+    Moreover, the CoW DAO has a direct channel to influence the incentive structure of solvers via the batch auction objective function.
+    
+    The unique position of solvers also makes them particularly well-positioned to fight \emph{against} manipulation by atomically arbitraging manipulated prices into line with external markets in its solution.
+    %
+    For a solver whose payoffs do not depend on the output of the Feedlot oracle (in the sense that their equilbrium payoffs are not affected by the existence or non-existence of Feedlot), this strategy should even be pure profitable.
+  
+\end{itemize}
+
+\begin{example}
+In some cases, trading against a would-be manipulator may be economically viable even without social enforcement.
+%
+Suppose a wash trader submits a large volume of liquidity orders in both directions.
+%
+Suspecting a manipulation attempt, the solver discards the orders in one direction and himself takes the opportunity to make a large directional trade with no slippage.
+\end{example}
+
 \section{Economic impact}
+\label{impact}
 
 \subsection{For LPs}
 In \S\ref{price-feed}, we characterised the introduction of a price feed to our AMM pricing function as a way to mitigate or prevent LP losses due to adverse selection.
@@ -542,7 +655,8 @@ If Feedlot uses passthrough pricing and accepts trades in such a way that its re
 %
 That is, $\mathrm{LVR}_n$ is the difference in performance between a Feedlot LP and a CFMM LP.
 %
-This is contingent on a sufficient `uninformed' order flow arriving at Feedlot for it to track the reference portfolio by selectively accepting trades.
+This construction is contingent on a sufficient `uninformed' order flow arriving at Feedlot for it to track the reference portfolio by selectively accepting trades.
+%
 
 \
 
@@ -550,24 +664,30 @@ This is contingent on a sufficient `uninformed' order flow arriving at Feedlot f
 
 \subsection{For traders}
 
-Feedlot LPs take up a short position on a kind of option to trade at a certain oracle price. 
+Fundamentally, a trader on Feedlot makes a commitment to buy a product at the price set by a certain oracle at the next oracle update (volume limits notwithstanding).
 %
-But by construction, this price is also realisable on other markets; that is, this optionality already exists `naturally.'
+By construction, this price is also realisable on other markets; that is, this opportunity already exists `naturally.'\footnote{Technically, while it was realisable on other markets \emph{before} the batch, by the time Feedlot trades that opportunity has already been taken up by CoW solvers themselves.}
 %
-Why then should traders be interested in purchasing this product?
+Why then should traders be interested in trading on Feedlot?
 
+We identified three legitimate reasons:
 \begin{itemize}
   \item 
     \emph{Protection.} By trading along with the CoW batch, the risk of price changes between commitment and execution time (whether due to `natural' variability or deliberate attack) is socialised across the whole CoW/Feedlot execution.
     %
-    Traders on CoW itself also enjoy this benefit.
+    Note that traders on CoW itself also enjoy this benefit.
     
   \item
-    \emph{Spread}. User orders on the CoW batch auction employ solvers to actively seek out favourable prices. On the other hand, market orders on Feedlot simply wait for someone on CoW to ask for a price for that pair and then take advantage of the result.
+    \emph{Spread.} User orders on the CoW batch auction employ solvers to actively seek out favourable prices. On the other hand, market orders on Feedlot simply wait for someone on CoW to ask for a price for that pair and then take advantage of the result.
     %
     Feedlot LPs do no price-finding work, and depending on how the liquidity curve is configured, may also enjoy portfolio management services (at the cost of unpredictable execution prices for users).
     %
     Hence, Feedlot trading fees (or equivalently, the bid-ask spread) must be cheaper than the active service provided by CoW protocol.
+    
+  \item
+    \emph{Skew.} Depending on the design of the liquidity curve, a Feedlot AMM may provide more favourable pricing for trades that push the pool reserves towards the desired balance.
+    %
+    From the trader's perspective, this is a similar dynamic to the way prices are updated on a CFMM.
 
 \end{itemize}
 
@@ -581,67 +701,20 @@ It would also yield a new revenue stream for CoW protocol in the form of oracle 
 
 The question of whether a safe implementation is possible requires further research.
 %
+While the guarantees of CoW itself provide that a Feedlot oracle is always `truthful,' the difficult problem of preventing or discouraging the reporting of an `artificial' (albeit truthful) price --- a price under a centralised influence by a manipulatin attacker --- remains a challenge. 
+%
 A team wishing to implement a Feedlot AMM must take great care to ensure that it does not make the CoW UCP an economically viable target for manipulation, inviting harm on Feedlot LPs and users and stakeholders of CoW protocol alike.
 %
+Simply put, no one would want to provide liquidity to a pool which is forced to accept trades at any price quoted to it.
+
 In \S\ref{manipulation}, we have established that some kind of volume controls are a necessary condition for manipulation resistance.
 %
 However, na\"ively limiting volume in terms of the volume on CoW is not sufficient, since this quantity is itself prone to relatively low-cost manipulation.
 %
-Furthermore, if the scale of traditional derivative markets is anything to go by, there is likely to be interest in increasing the allowable volume to possibly as much as several times the volume of the CoW batch itself.
-
-We propose three basic avenues of investigation
-\begin{itemize}
-  \item
-    \emph{Visibility.}
-    Efforts should be made to make manipulation \emph{detectable} if it occurs.
-    %
-    There are a number of immediate difficulties with this endeavour:
-    \begin{itemize}
-      \item 
-        It is not straightforward to even define the notion of manipulation. Widely acknowledged is the necessary component of \emph{intent}. we also need to be able to make sense of the `non-manipulated' price, for which we need insight
-      \item 
-        In pseudonymous blockchain environments, identities are by default not Sybil-resistant. It is not generally possible to prove that two addresses acted in concert, which would be.
-        %
-        This problem could be mitigated by the adoption of a Sybil-resistant authentication system as a requirement for using CoW swap and Feedlot.
-      \end{itemize}
-
-  \item
-    \emph{Make manipulation more expensive.}
-    If a manipulator can reliably effect atomic execution of his manipulation strategy with the CoW/Feedlot batch, then the cost to manipulate is given by the expression (\ref{cost-of-manipulation}).
-    %
-    The only actor who can achieve atomicity with certainty is the solver itself.
-    
-  \item
-    \emph{Constrain the marginal proceeds of manipulation.}
-    
-    
-  \item
-    \emph{Control solver activities.}
-    Solvers, as the most privileged actors in the CoW ecosystem, are inherently particularly resistant to the mitigation heuristics heretofore discussed.
-    %
-    On the other hand, a solver has a Sybil-resistant identity and economic exposure to the CoW DAO in the form of his bond.
-    %
-    Moreover, the CoW DAO has a direct channel to influence the incentive structure of solvers via the batch auction objective function.
-  
-\end{itemize}
-
-    \emph{Social enforcement.} 
-    The solver itself is the most privileged actor in this game. 
-    %
-    While this places it in a uniquely powerful position to manipulate CoW prices itself --- and therefore ought to be the subject of particular scrutiny --- it also is uniquely positioned to fight \emph{against} manipulation by arbitraging manipulated prices into line with external markets in its solution.
-    %
-    However, fighting against manipulation is not necessarily aligned with the objective function currently in effect on CoW protocol.
-    %
-    As it stands, CoW solvers are already economically exposed to the governance decisions of the CoW DAO.
-
-
-\begin{example}
-In some cases, trading against a would-be manipulator may be economically viable even without social enforcement.
+Furthermore, if the scale of traditional derivative markets is anything to go by, there is likely to be interest in increasing the allowable volume to many times the volume of the CoW batch itself.
 %
-Suppose a wash trader submits a large volume of liquidity orders in both directions.
-%
-Suspecting a manipulation attempt, the solver discards the orders in one direction and himself takes the opportunity to make a large directional trade with no slippage.
-\end{example}
+We recommend that further resources be committed to research mitigation and enforcement methodology, with some more specific suggestions outlined in \S\ref{manipulation-enforcement}.
+
 
 \printbibliography
 \end{document}
