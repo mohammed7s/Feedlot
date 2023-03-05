@@ -4,6 +4,8 @@
 \input{layout}
 
 \usepackage{graphicx}
+\usepackage{verbatim}
+
   
 \usepackage{amsthm}
 \theoremstyle{remark}
@@ -52,13 +54,15 @@
 
 \paragraph{Abstract}
 
-This article is a feasibility study for a class of automated market makers (AMMs) that passively provide liquidity at a price based on the uniform clearing price (UCP) of a competitive batch auction such as CoW protocol.
+This article is a feasibility study for a class of automated market makers (AMMs), collectively dubbed \emph{Feedlot}, that passively provide liquidity at a price based on the uniform clearing price (UCP) of a competitive batch auction such as CoW protocol.
 %
 If implemented properly, liquidity providers on Feedlot AMMs should enjoy protection from the adverse selection that plagues CFMM LPs, and oracle fees could provide a new revenue stream for the batch auction provider itself.
 
-This article is not a whitepaper, specification, or proposal, and it makes no claim to exhaustiveness or completeness on any of the topics discussed --- particularly security. 
+We review general principles of designing CFMMs and pricing oracles; propose an architecture for a channel through which the CoW UCP is communicated to a liquidity pool; and review the security implications for CoW and the pool of consuming the UCP to execute additional trades. We study from theoretical and empirical perspectives the economic implications for traders and LPs that a functioning Feedlot implementation would entail.
+
+This article is not a whitepaper, specification, or fully fleshed out proposal, and it makes no claim to exhaustiveness or completeness on any of the topics discussed --- particularly security. 
 %
-Would-be implementers of a feedlot AMM are advised to pursue thorough further investigations of these issues in the context into which they hope to deploy.
+Would-be implementers of a Feedlot AMM are advised to pursue thorough further investigations of these issues in the context into which they hope to deploy.
 
 \section{Introduction}
 
@@ -100,28 +104,10 @@ The fact that the UCP is used to settle a batch auction means that it has a uniq
 
 We give the working name \emph{Feedlot} to a hypothetical AMM based on this model.
 %
-A successful implementation of a Feedlot AMM should have the following properties:
-\begin{itemize}
-  \item
-    Liquidity providers should enjoy cheap portfolio management, some yield, and protection from adverse selection.
-    
-  \item
-    Traders should enjoy low, predictable fees, control over execution time, and favourable prices at least for trades in the `correct' direction.
-    
-  \item
-    It should not be economical to manipulate the uniform clearing price (UCP) of the CoW batch auction in order to trade at favourable prices on Feedlot.
-    
-    Moreover, it should not be possible to substantially offset the cost of manipulating the CoW UCP (for any reason) by trading on a Feedlot AMM.
 
-  \item 
-    Wherever possible, Feedlot should use incentive-compatible mechanisms to ensure correct operation.
-    %
-    Social adjudication procedures should be employed only as a fallback.
-  
-\end{itemize}
-In the remainder of this report, we discuss approaches to implementing an AMM that fulfils these properties. It is structured as follows: in \S\ref{general}, we review general principles of designing CFMMs and pricing oracles; 
+The rest of this report is structured as follows: in \S\ref{general}, we review general principles of designing CFMMs and pricing oracles; 
 %
-in \S\ref{architecture} we propose architectures, particularly as regards the structure of the channel through which the UCP is communicated to a Feedlot liquidity pool; 
+in \S\ref{architecture} we discuss the channel through which the UCP is communicated to a Feedlot liquidity pool; 
 %
 in \S\ref{security} we review the security implications for CoW and Feedlot of consuming the UCP to execute additional trades;
 %
@@ -135,12 +121,14 @@ finally, in \S\ref{impact} we study from theoretical and empirical perspectives 
 
 Our blockchain model is based on Ethereum, and should apply to any blockchain-based state machine with similar principles (for example Gnosis Chain).
 %
+\begin{comment}
 In particular we point out the following assumptions:
 \begin{itemize}
 \item Accounts model that tracks token balances with a common interface (e.g. ERC20) and such that token transfers satisfy usual invariants (i.e.~transfers must preserve total supply and balances cannot be negative).
 \item Transactions (a.k.a.~messages calls) must be initiated by an off-chain entity.
 \item Transactions, once committed, cannot be rolled back. That is, we do not consider the risk of blockchain forks.
 \end{itemize}
+\end{comment}
 By a \emph{smart contract system} we mean any kind of on-chain entity or aggregation of entities. In particular, it may mean a single smart contract (e.g.~a Uniswap pool) or a structured collection of interacting smart contracts (e.g.~Uniswap as a whole).
 
 We make use of the following standard terminology:
@@ -157,6 +145,8 @@ We make use of the following standard terminology:
   Prices are supplied by \emph{solvers} who compete to optimise an objective function defined in terms of the price vector and the set of orders.
   
   \item \emph{Uniform clearing price (UCP).} Price vector against which a batch auction is settled.
+  
+  \item \emph{Coincidence of wants (COW).} Execution or partial execution against one another of two orders in opposing directions. 
   
   \item \emph{Solver.} Agent that provides quotes in competition to settle a batch auction.
   
@@ -269,6 +259,30 @@ If prices slide far enough for arbitrages to appear, one can further suppose tha
 
 \end{example}
 
+\subsection{Design goals}
+
+A successful implementation of a Feedlot AMM should have the following properties:
+\begin{itemize}
+  \item
+    Liquidity providers should enjoy cheap portfolio management, some yield, and protection from adverse selection.
+    
+  \item
+    Traders should enjoy low, predictable fees, control over execution time, and favourable prices at least for trades in the `correct' direction.
+    
+  \item
+    It should not be economical to manipulate the uniform clearing price (UCP) of the CoW batch auction in order to trade at favourable prices on Feedlot.
+    
+    Moreover, it should not be possible to substantially offset the cost of manipulating the CoW UCP (for any reason) by trading on a Feedlot AMM.
+
+  \item 
+    Wherever possible, Feedlot should use incentive-compatible mechanisms to ensure correct operation.
+    %
+    Social adjudication procedures should be employed only as a fallback.
+  
+\end{itemize}
+%
+In subsequent sections, we discuss approaches to implementing an AMM realising this list.
+
 
 \section{Architecture}
 \label{architecture}
@@ -306,7 +320,7 @@ Schematically, the CoW algorithm runs as follows:
     \caption{CoW procotol execution. CoW services accumulate orders and batches are settled (at most) every 30 seconds.}
   \end{center}
 \end{figure}
-
+%
 An AMM whose quote depends on the UCP of the CoW batch auction needs to have at least the following structures:
 \begin{itemize}
   \item A way for traders to submit orders.
@@ -348,9 +362,6 @@ It does not require any changes to CoW's onchain components.
   \end{center}
 \end{figure}
 %
-Whether the UCP is updated before or after the settlement affects only how Feedlot behaves for orders placed in the winning solution itself, with the details depending on the synchrony model for Feedlot; see \S\ref{solution-on-feedlot}.
-%
-Orders that arrive at Feedlot outside the batch are not affected by this ordering.
 
 What could be considered a third option is to fall back on another algorithm in case no price is available. 
 %
@@ -366,6 +377,7 @@ One write is needed per batch per product, and one read is needed per trade on F
 %
 These operations being relatively cheap, it would be reasonable to implement this type of channel as an on-chain oracle.
 %
+\begin{comment}
 \begin{figure}
   \begin{center}
     \vspace{1ex}
@@ -373,20 +385,29 @@ These operations being relatively cheap, it would be reasonable to implement thi
     \caption{Polling oracle. Feedlot AMM executions are not synchronised with CoW batches.}
   \end{center}
 \end{figure}
+\end{comment}
 %
 A variant approach is to aggregate UCPs to produce, for example, time-weighted average prices. This is the approach taken by Uniswap's oracle service \cite{adams2020uniswap}.
+
+Since the prices retrieved by this method are necessarily stale, this approach does not preserves the unique \emph{realisability} property of the UCP (see \S\ref{realisable}). For this reason, and because poll-based oracle services are already plentiful, for the rest of this report we focus instead on the more interesting subscription model.
 
 \subsubsection{Subscription model}
 
 In this approach, orders arriving at Feedlot are accumulated in an order book.
 %
 All trades are executed when there is a CoW batch.
+\begin{comment}
 \begin{figure}
   \begin{center}
     \includegraphics{diagrams/sub.pdf}
     \caption{Subscription oracle. Feedlot AMM executions are triggered when a new price is published.}
   \end{center}
 \end{figure}
+\end{comment}
+%
+Whether the Feedlot trades execute before or after the CoW batch affects only how Feedlot behaves for orders placed in the winning solution itself; see \S\ref{solution-on-feedlot}.
+%
+Orders that arrive at Feedlot outside the batch are not affected by this ordering.
 
 As with any order book based protocol, the order book itself would potentially be quite expensive to maintain on the Ethereum chain.
 %
@@ -405,28 +426,18 @@ Pragmatically, a reasonable approach would be to maintain the order book in the 
 
 Certain configurations would allow the solution to both settle orders on Feedlot and quote it a price.
 %
-The solver's objective is to get the most favourable price possible for its users, so naturally it will quote the least favourable price that Feedlot will accept.
+Evidently, this can only happen if Feedlot orders are executed \emph{after} execution of the solution but \emph{before} verifying that the solution satisfied all the orders it claimed to satisfy.
+
+Implemented na\"ively, this design permits the winning solver to quote any price at all and have it instantly execute against Feedlot.
+%
+Since the solver's objective is to get the most favourable price possible for its users, a rational solver will quote the least favourable price that Feedlot will accept.
 %
 Naturally, allowing an entity to trade against the AMM at any price it chooses is trivially exploitable to the detriment of LPs, and so special care has to be taken to address this case.
 
+While the ability for solvers to both set prices and trade at those prices on Feedlot persists even when the batch  itself cannot settle on Feedlot --- see \S\ref{security} --- this design is the only situation in which doing so is completely risk-free for the solver.
 
-\subsubsection{Poll model}
 
-In the poll-based model, 
-\begin{itemize}
-  \item If the UCP is updated \emph{after} the batch, the solution trades with a stale price.
-  \item If the UCP is updated \emph{before} the batch, the solution trades at the price quoted by the solver.
-\end{itemize}
-The interesting case is the second one. 
-%
-Assuming solutions are simulated exactly as they would run on-chain, a solver could quote any price at all and have it execute successfully against Feedlot.
-%
-The solver's objective is to get the most favourable price possible for its users, so naturally it will quote the least favourable price that Feedlot will accept.
-%
-Naturally, allowing an entity to trade against the AMM at any price it chooses is trivially exploitable to the detriment of LPs.
-%
-Thus, if this approach were to be pursued, a special mechanism would have to implemented where Feedlot is specifically excluded from simulation.
-
+\begin{comment}
 Let us discuss, and dismiss, in turn a few approaches to making this work:
 \begin{itemize}
   \item 
@@ -452,8 +463,9 @@ Let us discuss, and dismiss, in turn a few approaches to making this work:
     
 \end{itemize}
 It is possible that some combination of these and other approaches could allow solvers to safely both trade and quote on the Feedlot liquidity pool.
+\end{comment}
 
-
+\begin{comment}
 \subsubsection{Subscription model}
 
 Batch solutions must settle immediately, so the success of the solution cannot depend on trading on an AMM that enqueues orders for execution at a later time.
@@ -468,6 +480,7 @@ A solver could therefore use the following strategy:
 Financially, this amounts to hedging the trade in step 1.~with a forward contract with expiry at the next batch.
 %
 In this way, Feedlot could act as a kind of repo market for solvers.
+\end{comment}
 
 \section{Cryptoeconomic security}
 \label{security}
@@ -481,7 +494,7 @@ In the present context, fidelity of the communication of value is guaranteed by 
 %
 In this section, we address the reliability of the CoW UCP as a data source in two senses: \emph{realisability} and \emph{manipulation resistance}.
 
-\subsection{Truthfulness of pricing data}
+\subsection{Realisability of pricing data}
 \label{realisable}
 
 We say that the price $p$ is \emph{realisable} for an agent $I$ at a volume $V$ of the in token and chain state $\phi$ if it is possible for $I$ to buy $V$ $A$ tokens for $pV$ $B$ tokens in state $\phi$.
@@ -514,6 +527,7 @@ Note that this type of activity does not undermine the fidelity of the oracle it
 %
 However, it does constitute a centralising force, and moreover, one that acts in direct opposition to LPs, presumably driving away liquidity.
 
+\begin{comment}
 In general, it is difficult to theoretically distinguish price manipulation from other types of economic activity that affects prices \cite{kyle2008define, zhang2022competition}.\footnote{It is even sometimes disputed whether activities typically deemed `manipulation' are even harmful. In our case, however, the harm associated to this centralisation vector is quite explicit.}
 %
 In our present context, we attempt the following intuitive `definition' of \textbf{manipulation resistance}: a trading game whose payoffs depend on a parameter $p$ is $p$-manipulation resistant if the cost of effecting a change in $p$ away from its `natural' value --- the value that it would assume in equilbrium if the Feedlot AMM did not exist --- is greater than the marginal profit that can be made by exploiting such a price change:
@@ -524,8 +538,56 @@ In our present context, we attempt the following intuitive `definition' of \text
 Here $\sigma$ is a strategy that is optimal at oracle price $p$ and $\sigma'$ is an optimal strategy at oracle price $p_\mathrm{ext}$.
 %
 This mirrors the approach of \cite{perdue1987manipulation} and that of the United States Grain Futures Administration (\emph{op.~cit}, p.358), which suggests that activities be called manipulative if they would be irrational absent an effect on price.
+\end{comment}
 
-To analyse this property concretely, it is necessary to have models for the strategy space.
+If a Feedlot implementation is to succeed, it must therefore be \textbf{manipulation resistant} in the sense that the cost of effecting a change in the oracle price away from its equilibrium value --- more accurately, what would be its equilibrium value if Feedlot did not exist --- exceeds the marginal proceeds of manipulation.
+%
+To analyse this property concretely, we need to understand what strategies are available to a manipulating adversary.
+%
+We enumerate a few basic examples here:
+
+\begin{example}[Privileged manipulation through wash trades]
+
+  A solver $X$ places orders of equal volume in both directions of a low-volume pair on CoW.
+  %
+  He also enqueues an order for this pair in one direction on Feedlot.
+  %
+  If the solver wins the competition, he is free to settle his CoW orders against one another at any price.
+  %
+  He chooses a price that optimises his profit for the order on Feedlot.
+  
+  In this strategy, manipulation costs nothing if the solver can be sure of winning the auction.
+  %
+  The risk is that another solver wins the auction and settles $X$'s trades at unfavourable prices.
+
+\end{example}
+
+An adjustment of this strategy can be carried out by any adversary:
+%
+\begin{example}[Unprivileged manipulation through wash trades with limits]
+
+  A trader $Y$ places equal volume of orders on CoW in both directions of a low-volume pair with compatible limit prices $p_-<p_+$.
+  %
+  He also places an order on Feedlot for the same pair in the direction for which a price in $[p_-,p_+]$ would be favourable.
+  
+  Solvers gain utility from settling the resulting COWs with UCP in the range $[p_-,p_+]$; if the volume of wash trades is large compared to non-cooperating volume, doing so is a dominant strategy.
+  %
+  Hence, assuming rational solvers, the success of this strategy does not depend on which solver wins the auction.
+  
+\end{example}
+
+A trading pair subject to either of the wash trading strategies discussed above would be volume dominated by COWs. 
+%
+Hence, as a starting point to combatting price manipulation, we might forbid the trading of such pairs on Feedlot.
+
+If we restrict attention now to pairs that are dominated by settling on CFMMs (whose LPs are assumed not to collaborate with the adversary), we can rule out the ability --- even for the winning solver --- to manipulate prices for free.
+%
+Instead, the cost of manipulation becomes the cost of trading at the unfavourable manipulated price with non-allied LPs; that is, $V_\mathrm{AMM}\cdot(p - p_\mathrm{ext})$ where $V_\mathrm{AMM}$ is the volume of trades in the batch settling on AMMs, $p_\mathrm{ext}$ is the external market price, and $p$ is the manipulated price.
+%
+If the volume on Feedlot is allowed to exceed $V_\mathrm{AMM}$, price manipulation can still be profitable even in this setting.
+
+
+\begin{comment}
 \begin{itemize}
   \item 
     To cause the CoW UCP to be equal to $p<p_\mathrm{ext}$ at volume $V_\mathrm{CoW}$, it is necessary and sufficient to make available a volume $V_\mathrm{CoW}$ of the risky asset for purchase by a solver at price $p$.
@@ -560,68 +622,50 @@ If $V'_\mathrm{CoW}$ can be estimated, this inequality can be enforced in the fo
 Unfortunately, it is hard to calculate $V'$ in practice, because orders owned by an agent following a manipulation strategy cannot easily be distinguished from the orders of other agents.
 %
 The potential for low-cost wash trading means that in general, it need not be possible to estimate $V'$ in terms of $V$.
+\end{comment}
 
-\subsection{Recommendations for further research}
+
+\subsection{Mitigating the manipulation problem}
 \label{manipulation-enforcement}
 
-We propose four basic avenues of further investigation on the manipulation problem:
-\begin{itemize}
-  \item
-    \emph{Visibility.}
-    Efforts should be made to precisely define manipulation in the context of CoW and Feedlot and to make activities falling under the definition \emph{detectable} if they occur, especially if carried out by or with the cooperation of solvers.
-    
-    General definitions of price manipulation have long proved elusive \cite{perdue1987manipulation,kyle2008define}.
-    %
-    Common themes are the importance of \emph{intent} --- difficult to establish --- and the concept of an `artificial' price, which is itself difficult to define.
-    %
-    We propose to 
-    
-    A special difficulty that arises in our setting of a pseudonymous blockchain environments is the ease of creating alternate identities that are not visibly connected to one another.
-    %
-    It is not generally possible to prove that the owners of two addresses did or did not act coperatively, which we believe is a prerequisite for establishing intent.
-    %
-    This problem could be mitigated by the adoption of a Sybil-resistant authentication system as a requirement for using CoW swap and Feedlot.
-    
+Price manipulation is a fundamental threat to Feedlot LPs and centralisation vector for CoW protocol itself. 
+%
+We do not have a complete solution for this problem, and any team wishing to push forward on the Feedlot paradigm must invest resources into developing a mitigation strategy.
+
+While there is probably no `magic bullet' design concept that makes all manipulation strategies unprofitable, we can identify several promising general approaches, some combination of which may yield a workable design:
+%
+\begin{itemize}    
   \item
     \emph{Make manipulation more expensive.}
-    If a manipulator can reliably effect atomic execution of his manipulation strategy with the CoW/Feedlot batch, then the cost to manipulate is given by the expression (\ref{cost-of-manipulation}).
+    Discounting wash trading, the fundamental cost to make a manipulated price $p$ realisable at a volume $V$ is $V\cdot(p-p_\mathrm{ext})$. 
     %
-    The only actor who can achieve atomicity with certainty is the solver itself.
+    However, the capital requirements and risk associated with doing this depend on the details of the market on which this price is realisable.
+    
+    Feedlot should only accept prices sourced from whitelisted markets where manipulation is capital-intensive --- for example, deep CFMM pools --- and should be structured so that such manipulation cannot be carried out atomically.
     
   \item
     \emph{Constrain the marginal proceeds of manipulation.}
-    We have proposed volume controls as a method for reducing the extent to which Feedlot can be used to subsidise manipulation.
+    Carefully implemented, wash trading aware volume controls could prevent the adversary from turning a profit even if he is able to influence the CoW price by dominating volume.
     %
-    While a na\"ive volume control in terms of the CoW volume cannot work by itself, a more sophisticated approach might.
-    %
-    We propose two methods for further exploration:
-    \begin{itemize}
-      \item In a similar manner to what we have done for price manipulation, develop a quantitative model to estimate the cost to manipulate $V_\mathrm{CoW}$ and devise methods to lower bound this.
-      \item Supplement this approach with ad hoc absolute volume rules that can be set by the DAO.
-    \end{itemize}
-    
+    Volume limits could be expressed in terms of CoW volume (less wash trading) and absolute parameters set by DAO governance.
     
   \item
-    \emph{Control solver activities.}
-    Solvers, as the most privileged actors in the CoW ecosystem, are inherently particularly resistant to the mitigation heuristics heretofore discussed.
+    \emph{Control solver incentives.}
+    Solvers, as the most privileged actors in the CoW ecosystem, are also the most powerful threat to Feedlot LPs.
     %
-    On the other hand, a solver has a Sybil-resistant identity and economic exposure to the CoW DAO in the form of his bond.
+    On the other hand, if their incentives were properly aligned, they could also be a powerful defense against manipulation --- for example, by arbitraging manipulated markets back into ex-Feedlot equilibrium before settling.
     %
-    Moreover, the CoW DAO has a direct channel to influence the incentive structure of solvers via the batch auction objective function.
+    To accommodate Feedlot, the objective function of solvers should be adjusted to strike a balance between utility for user orders and for Feedlot LPs.
     
-    The unique position of solvers also makes them particularly well-positioned to fight \emph{against} manipulation by atomically arbitraging manipulated prices into line with external markets in its solution.
+  \item
+    \emph{Define, expose, and punish solver misbehaviour}
+    Solvers who manipulate prices to the detriment of Feedlot LPs can, if this behaviour is well-defined and observable, be slashed by the DAO.
     %
-    For a solver whose payoffs do not depend on the output of the Feedlot oracle (in the sense that their equilbrium payoffs are not affected by the existence or non-existence of Feedlot), this strategy should even be pure profitable.
+    Pinning down the notion of `manipulation' in general is not straightforward \cite{kyle2008define, zhang2022competition}, but in the present context a plausible definition is \emph{behaviour that would be irrational, less an effect on price} \cite{perdue1987manipulation}.
+    %
+    For rationality to be observable and decidable, we must develop practical models for solver incentives, and solvers should declare their conflicts of interest.
   
 \end{itemize}
-
-\begin{example}
-In some cases, trading against a would-be manipulator may be economically viable even without social enforcement.
-%
-Suppose a wash trader submits a large volume of liquidity orders in both directions.
-%
-Suspecting a manipulation attempt, the solver discards the orders in one direction and himself takes the opportunity to make a large directional trade with no slippage.
-\end{example}
 
 \section{Economic impact}
 \label{impact}
