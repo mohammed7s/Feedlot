@@ -235,7 +235,7 @@ If prices slide far enough for arbitrages to appear, one can further suppose tha
 \begin{example}
   Suppose we target a reserve balance of 50-50 (computed in terms of the oracle price), setting
   \[
-    p(x,y;p_\mathrm{ext}) = p_\mathrm{ext}\cdot g\left(p_\mathrm{ext}x/y\right)
+    p(x,y;p_\mathrm{ext}) = p_\mathrm{ext}\cdot g\left(x/yp_\mathrm{ext}\right)
   \]
   where $g:(0,\infty)\rightarrow(0,\infty)$ is a monotone increasing function such that $g(1) = 1$.
   %
@@ -246,12 +246,19 @@ If prices slide far enough for arbitrages to appear, one can further suppose tha
   More interesting is to choose a function which has a small or vanishing gradient near $1$. A simple example is
   \[
     g(r) = \left\{\begin{array}{ll}
-      re^\tau & r \leq e^{-\tau} \\
-      1           & -\tau \leq t \leq \tau \\
-      re^{-\tau} & e^\tau\leq r
+      r\kappa & r \leq \kappa^{-1} \\
+      1           & \kappa^{-1} \leq t \leq \kappa \\
+      r\kappa^{-1} & \kappa\leq r
     \end{array}\right.
   \]
-  where $\tau >0$ is the `tolerance' of the pool for reserves to deviate from an even balance.
+  where $\kappa >1$ is the `tolerance ratio' of the pool for reserves to deviate from an even balance.
+  %
+  \begin{figure}
+    \begin{center} 
+      \includegraphics{diagrams/price-curve.pdf}
+      \caption{Piecewise linear pricing function of reserve balance with tolerance ratio $\kappa = 2$.}
+    \end{center}
+  \end{figure}
   %
   It is straightforward to compute integrals of these quantities, hence execution prices, analytically. 
   

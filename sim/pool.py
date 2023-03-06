@@ -1,12 +1,35 @@
 from dataclasses import dataclass
 from loguru import logger
 import math
+import pandas as pd
 
 class ReserveDepletedError(ValueError):
     def __str__(self):
         return f"Reserve {self.args[0]} depleted!"
 
 class SwapRejectedError(ValueError): pass
+
+class AMMPoolHistory:
+    def __init__(self, reserve0, reserve1):
+        self.reserves = [reserve0, reserve1]
+        self.history = []
+
+    def swap(self, amt0: int, amt1: int, ts: int):
+        """
+        Swap amt0 of token0 for -amt1 of token1, if reserves permit.
+        This function assumes that amt0 and amt1 have opposite sign.
+        """
+        tmp0 = self.reserves[0] + amt0
+        tmp1 = self.reserves[1] + amt1
+        if tmp0 >= 0 and tmp1 >= 0:
+            self.history.append((tmp0, tmp1))
+            self.reserves[0] = tmp0
+            self.reserves[1] = tmp1
+            return
+        elif tmp0 < 0:
+            raise ReserveDepletedError(0)
+        elif tmp1 < 0:
+            raise ReserveDepletedError(1)
 
 class AMMPool:
     def __init__(self, reserve0, reserve1):
