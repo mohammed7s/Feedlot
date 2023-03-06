@@ -49,16 +49,6 @@ docs/api/*
 docs/_rst/*
 docs/_build/*
 cover/*
-/data/cowv2_solvers.csv
-/data/cow_raw/*
-/data/cow-gc_raw/*
-/data/transformed/*
-/data/chainlink_prices/*
-# cow_swap_datastreams_tutorial/*
-/data/*
-/data_scripts/*
-/exploratory_data_notebooks/*
-/transformations/*
 
 
 MANIFEST
@@ -68,6 +58,5 @@ MANIFEST
 .conda*/
 .python-version
 /vcow*
-/cow_swap_datastreams_tutorial/subgraph_queries.ipynb
-/cow_swap_datastreams_tutorial/univ3_lp_data.ipynb
-/cow_swap_datastreams_tutorial/data/*
+/pipeline/data/*
+/pipeline/*.parquet
