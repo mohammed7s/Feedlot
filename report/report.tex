@@ -553,6 +553,7 @@ To analyse this property concretely, we need to understand what strategies are a
 %
 We enumerate a few basic examples here:
 
+\begin{comment} THIS STUFF IS ALL WRONG
 \begin{example}[Privileged manipulation through wash trades]
 
   A solver $X$ places orders of equal volume in both directions of a low-volume pair on CoW.
@@ -586,51 +587,54 @@ An adjustment of this strategy can be carried out by any adversary:
 A trading pair subject to either of the wash trading strategies discussed above would be volume dominated by COWs. 
 %
 Hence, as a starting point to combatting price manipulation, we might forbid the trading of such pairs on Feedlot.
-
-If we restrict attention now to pairs that are dominated by settling on CFMMs (whose LPs are assumed not to collaborate with the adversary), we can rule out the ability --- even for the winning solver --- to manipulate prices for free.
-%
-Instead, the cost of manipulation becomes the cost of trading at the unfavourable manipulated price with non-allied LPs; that is, $V_\mathrm{AMM}\cdot(p - p_\mathrm{ext})$ where $V_\mathrm{AMM}$ is the volume of trades in the batch settling on AMMs, $p_\mathrm{ext}$ is the external market price, and $p$ is the manipulated price.
-%
-If the volume on Feedlot is allowed to exceed $V_\mathrm{AMM}$, price manipulation can still be profitable even in this setting.
-
-
-\begin{comment}
-\begin{itemize}
-  \item 
-    To cause the CoW UCP to be equal to $p<p_\mathrm{ext}$ at volume $V_\mathrm{CoW}$, it is necessary and sufficient to make available a volume $V_\mathrm{CoW}$ of the risky asset for purchase by a solver at price $p$.
-    %
-    Ignoring second-order effects such as the reaction of other market participants to a price change, the basic cost of this is given by
-    \begin{equation}
-    \label{cost-of-manipulation}
-      V'_\mathrm{CoW}\cdot |p_\mathrm{ext}-p|,
-    \end{equation}
-    where $V'_\mathrm{CoW}\leq V_\mathrm{CoW}$ is the volume of user orders in the batch not placed by the manipulator.
-    
-  \item 
-    To model the marginal proceeds of manipulation, we consider only the direct profits from trading on Feedlot at favourable prices, that is,
-    \[
-      V_\mathrm{Feedlot}\cdot\left|p-p_\mathrm{ext}\right|
-    \]
-    where $V_\mathrm{Feedlot}$ is the amount traded.
-    %
-    Other profits from as-yet unrealised uses of $\oracle$ are difficult to predict.
-    %
-    CoW or would-be Feedlot developers may have some ability to constrain, or at least channel, decision-making based on $\oracle$ by restricting on-chain access.
-    %
-    However, the feed would still be visible to anyone with access to an Ethereum node.
-    
-\end{itemize}
-With these models, the essential condition for manipulation resistance is
-\[
-  V_\mathrm{Feedlot} < V'_\mathrm{CoW}.
-\]
-If $V'_\mathrm{CoW}$ can be estimated, this inequality can be enforced in the form of a volume limit for Feedlot.
-%
-Unfortunately, it is hard to calculate $V'$ in practice, because orders owned by an agent following a manipulation strategy cannot easily be distinguished from the orders of other agents.
-%
-The potential for low-cost wash trading means that in general, it need not be possible to estimate $V'$ in terms of $V$.
 \end{comment}
 
+\begin{example}[Price setting through private liquidity]
+
+  Volume $V$ of buy orders is sitting on CoW for a given pair with external market price $p_\mathrm{ext}$.
+  %
+  A solver submits a solution in which they route private liquidity to settle the orders at price $p<p_\mathrm{ext}$; if their solution wins, they effectively lose $V\cdot(p_\mathrm{ext}-p)$.
+  %
+  At the same time, they enqueue buy orders on Feedlot of volume $V'$.
+  
+  If there are few orders in the opposite direction, the solver has a good chance of winning the auction because they provided a market-beating price.
+  %
+  The solver can even cheaply inflate this chance by adding his own buy orders to CoW (i.e.~wash trading).
+  %
+  In this case, their orders on Feedlot execute at price $p$, and the solver nets a profit of $(V'-V)\cdot(p_\mathrm{ext}-p)$.
+
+\end{example}
+
+
+\begin{example}[Price setting by arbitraging a CFMM]
+
+  Suppose we are in the same setting as the above, but Feedlot is configured so as to accept pricing only from whitelisted CFMMs.
+  %
+  A trader with sufficient capital can manipulate the price on a CFMM so that it becomes possible to buy volume $V$ at price $p$, and manipulate it back afterwards.
+  %
+  If successful, the effective cost of this strategy is again $V\cdot(p_\mathrm{ext}-p)$ (less fees).
+  %
+  With atomic execution in the batch, additional capital requirements can be financed with a flashloan.
+
+\end{example}
+
+\begin{example}[Permissionless price setting by arbitraging a CFMM]
+
+  Any trader can attempt the CFMM manipulation attack, and solvers would be incentivised to source liquidity from their manipulated markets.
+  %
+  However, in this case the trader cannot guarantee atomic execution, so he cannot use flashloans and faces significant execution risk.
+  %
+  In particular, a rational solver could arbitrage the CFMM back into equilibrium after settling user orders and before the back end of the trader's sandwich.
+
+\end{example}
+
+In general, disregarding fees and execution risk, we argue that the cost of manipulation is essentially the cost of trading at the unfavourable manipulated price with entities not collaborating with the adversary. 
+%
+That is, it becomes $V\cdot(p - p_\mathrm{ext})$ where $V$ is the volume of trades in the batch submitted by agents other than the adversary, $p_\mathrm{ext}$ is the external market price, and $p$ is the manipulated price.
+%
+Hence, risk-free price manipulation is profitable exactly when $V'>V$.
+%
+More generally, trading on Feedlot subsidises the manipulation by an amount depending on the `real' volume on CoW.
 
 \subsection{Mitigating the manipulation problem}
 \label{manipulation-enforcement}
