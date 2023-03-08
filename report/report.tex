@@ -170,9 +170,9 @@ The associated marginal pricing function is
 \]
 If reserves are in state $(x_0,y_0)$, the amount of $B$ tokens paid out in exchange for $-\Delta x$ $A$ tokens is
 \[
-  \Delta y = \int_{x_0}^{\Delta x} p(x,y(x))dx - y_0
+  \Delta y = \int_{x_0}^{\Delta x} 1/p(x,y(x))dx - y_0
 \]
-where $y(x)$ is determined by the corresponding differential equation $y'(x) = p(x,y(x))$ and the initial conditions $y(x_0)=y_0$.
+where $y(x)$ is determined by the corresponding differential equation $y'(x) = 1/p(x,y(x))$ and the initial conditions $y(x_0)=y_0$.
 
 A practical implementation of market orders on a CFMM must have a computationally efficient algorithm for computing $\Delta y$ given $\Delta x$.
 %
@@ -260,7 +260,7 @@ If prices slide far enough for arbitrages to appear, one can further suppose tha
     \end{center}
   \end{figure}
   %
-  It is straightforward to compute integrals of these quantities, hence execution prices, analytically. 
+  An AMM trading on this pricing function provides passthrough pricing as long as the inventory balance remains in the range $[\kappa^{-1},\kappa]$; a simple calculation shows that outside that range it trades as a weighted CPMM with weights $(1,\kappa)$, resp.~$(\kappa,1)$, depending on whether we have too little num\'eraire or too much, respectively.
   
   More generally, `stableswap' curves used in the wild for liquidity pools with weakly pegged prices can be adapted using this price feed approach to trade volatile assets as well \cite{egorov2019stableswap, port2022mixing}.
 
