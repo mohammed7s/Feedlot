@@ -59,4 +59,7 @@ MANIFEST
 .python-version
 /vcow*
 /pipeline/data/*
+/pipeline/old/*
 /pipeline/*.parquet
+
+/*.parquet

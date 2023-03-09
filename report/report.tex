@@ -715,7 +715,7 @@ This construction is contingent on a sufficient `uninformed' order flow arriving
 
 \
 
-\begin{center}[DATA STUDIES GO HERE]\end{center}
+
 
 \subsection{For traders}
 
@@ -745,6 +745,53 @@ We identified three legitimate reasons:
     From the trader's perspective, this is a similar dynamic to the way prices are updated on a CFMM.
 
 \end{itemize}
+
+
+\begin{center}[DATA STUDIES GO HERE]\end{center}
+\subsection{On-Chain Price Execution Analysis}
+We collected on-chain data from the Messari Univ3, CoW, and Chainlink subgraphs. 
+To perform this task, we utilized the DataStreams python library, which is a subgraph query utility package. 
+We performed merges and data transformations with Polars. Polars follows the Apache Arrow standards which is a in-memory columnar analytics standard in the industry. 
+
+%
+We obtained trade data for WETH/USDC orders on CoW, Univ3 USDC/WETH 5bps and 30 bps fee pool swaps, and ETH/USD Chainlink oracle price data from August 2021 to March 2023. 
+We made an adjustment to the Univ3 spot prices to account for gas transaction costs. We only had access to the gas limit, which is an upper bound for the amount
+of gas used in a Univ3 transaction. We used the median gas limit, which was around 312,218 as a heuristic to calculate the transaction cost. In comparison,
+a single Univ3 swap transaction will start at around 130,000 gas. Thus we can interpret the median value as assuming the average Univ3 swap goes through 
+a little more than 2 hops on average.
+
+With the median gas adjustments, traders receieved a 1.2\% discount to buy and sell WETH through CoW.
+With the single hop gas adjustments, which serve as a hard lower bound, traders receieved a .43\% discount to buy and sell WETH.
+
+\begin{figure}
+  \begin{center} 
+    \includegraphics{diagrams/WETH_buy_surplus_discount_median_gas_fee_adj.eps}
+  \end{center}
+\end{figure}
+
+\begin{figure}
+  \begin{center} 
+    \includegraphics{diagrams/WETH_sell_surplus_premium_median_gas_fee_adj.eps}
+  \end{center}
+\end{figure}
+
+\begin{figure}
+  \begin{center} 
+    \includegraphics{diagrams/WETH_buy_surplus_discount_median_gas_fee_adj_scatter.eps}
+  \end{center}
+\end{figure}
+
+\begin{figure}
+  \begin{center} 
+    \includegraphics{diagrams/WETH_sell_surplus_discount_median_gas_fee_adj_scatter.eps}
+  \end{center}
+\end{figure}
+
+
+
+
+
+
 
 \section{Conclusion}
 
