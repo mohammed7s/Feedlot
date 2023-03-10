@@ -71,6 +71,10 @@ class CPMM:
         amt = amt if direction == "BUY" else -amt
         self.market_order_buy(amt, token, *args, **kwargs)
 
+    def market_order_sell(self, amt: int, token: int, *args, **kwargs):
+        """Token must be either 0 or 1."""
+        return self.market_order_buy(-amt, token, *args, **kwargs)
+
     def market_order_buy(self, amt: int, token: int, *args, **kwargs):
         """Token must be either 0 or 1."""
         sell_amt = math.ceil(( self.invariant() / (self.pool.reserves[token] - amt) ) - \
@@ -89,6 +93,7 @@ from typing import Iterable
 class OraclePool:
     """
     Subclass and wrap p() if you fancy it.
+    token 1 is the numeraire.
     """
     def __init__(self, pool: AMMPool, oracle: Iterable[dict]):
         """
@@ -111,6 +116,9 @@ class OraclePool:
         except IndexError:
             raise ValueError("Ran out of oracle prices!")
         return self.oracle[0]["p"]
+
+    def market_order_sell(self, amt: int, token: int, ts: int):
+        return self.market_order_buy(-amt, token, ts) # this only works if spread is zero!
 
     def market_order_buy(self, amt: int, token: int, ts: int):
         if token == 0:
