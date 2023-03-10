@@ -35,7 +35,7 @@ class AMMPool:
     def __init__(self, reserve0, reserve1):
         self.reserves = [reserve0, reserve1]
 
-    def swap(self, amt0: int, amt1: int):
+    def swap(self, amt0: int, amt1: int, *args, **kwargs):
         """
         Swap amt0 of token0 for -amt1 of token1, if reserves permit.
         This function assumes that amt0 and amt1 have opposite sign.
@@ -67,11 +67,11 @@ class CPMM:
         else:
             raise SwapRejectedError(amt0, amt1)
 
-    def market_order(self, amt: int, direction: str, token: int):
+    def market_order(self, amt: int, direction: str, token: int, *args, **kwargs):
         amt = amt if direction == "BUY" else -amt
-        self.market_order_buy(amt, token)
+        self.market_order_buy(amt, token, *args, **kwargs)
 
-    def market_order_buy(self, amt: int, token: int):
+    def market_order_buy(self, amt: int, token: int, *args, **kwargs):
         """Token must be either 0 or 1."""
         sell_amt = math.ceil(( self.invariant() / (self.pool.reserves[token] - amt) ) - \
                 self.pool.reserves[(token+1)%2])
@@ -81,7 +81,7 @@ class CPMM:
         else:
             amt0 = sell_amt
             amt1 = -amt
-        self.pool.swap(amt0, amt1)
+        self.pool.swap(amt0, amt1, *args, **kwargs)
 
 from collections import deque
 from typing import Iterable
@@ -112,14 +112,14 @@ class OraclePool:
             raise ValueError("Ran out of oracle prices!")
         return self.oracle[0]["p"]
 
-    def market_order_buy(self, amt: int, ts: int, token: int):
+    def market_order_buy(self, amt: int, token: int, ts: int):
         if token == 0:
             amt0 = -amt
             amt1 = math.ceil( amt * self.p(ts) )
         else:
             amt1 = -amt
             amt0 = math.ceil( amt / self.p(ts) )
-        self.pool.swap(amt0, amt1)
+        self.pool.swap(amt0, amt1, ts)
         return amt0, amt1
 
 class ConcLiquidityPool(OraclePool):
@@ -149,7 +149,7 @@ class ConcLiquidityPool(OraclePool):
     def balance(self, ts):
         return self.pool.reserves[0] / (self.p(ts) * self.pool.reserves[1])
 
-    def market_order_sell(self, amt: int, ts: int, token: int) -> bool:
+    def market_order_sell(self, amt: int, token: int, ts: int) -> bool:
         p_ext = self.p(ts)
         logger.debug(f"Oracle price: {p_ext}")
         balance = self.pool.reserves[0] / (p_ext * self.pool.reserves[1])
