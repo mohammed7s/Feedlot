@@ -160,6 +160,9 @@ while(True):
 		    bid_price = get_price(df_vwap['bids'].values, qty)
 		    ask_price = get_price(df_vwap['asks'].values, qty)
 		    
+		    if bid_price is None or ask_price is None:
+    			raise ValueError("Unable to calculate deviation due to missing price data")
+		   
 		    bid_deviation = 100 * (bid_price - df_vwap['bids'][0][0]) / df_vwap['bids'][0][0]
 		    ask_deviation = 100 * (ask_price - df_vwap['asks'][0][0]) / df_vwap['asks'][0][0]
 		    
