@@ -40,7 +40,7 @@ def test_cpmm_market_buy():
     assert P.reserves[1] >= 2000000
 
 def test_oracle_pool():
-    P = AMMPool(1000000, 1000000)
+    P = AMMPoolHistory(1000000, 1000000)
     oracle = [
         {"ts": 1000, "p": 1.1},
         {"ts": 1001, "p": 1.2},
