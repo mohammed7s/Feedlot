@@ -161,8 +161,9 @@ while(True):
 		    ask_price = get_price(df_vwap['asks'].values, qty)
 		    
 		    if bid_price is None or ask_price is None:
-    			raise ValueError("Unable to calculate deviation due to missing price data")
-		   
+    			print("Unable to calculate deviation due to missing price data")
+    			return 'value_error'
+
 		    bid_deviation = 100 * (bid_price - df_vwap['bids'][0][0]) / df_vwap['bids'][0][0]
 		    ask_deviation = 100 * (ask_price - df_vwap['asks'][0][0]) / df_vwap['asks'][0][0]
 		    
@@ -235,8 +236,6 @@ while(True):
 			if sell_pair == 'USDTUSDT':
 				sell_token_price = 1 
 		        
-			elif sell_pair == 'USDCUSDT':
-				sell_token_price = 1 
 		        
 			elif sell_pair == 'DAIUSDT':
 				usdtdai = query_binance('USDTDAI', timestamp, buyTokenQty, True)
@@ -263,8 +262,6 @@ while(True):
 			if buy_pair =='USDTUSDT':
 				buy_token_price = 1 
 		        
-			elif buy_pair == 'USDCUSDT':
-				buy_token_price = 1 
 		        
 			elif buy_pair == 'DAIUSDT':
 				usdtdai = query_binance('USDTDAI', timestamp, buyTokenQty, True)
