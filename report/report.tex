@@ -266,6 +266,16 @@ If prices slide far enough for arbitrages to appear, one can further suppose tha
 
 \end{example}
 
+\begin{example}
+
+  Yet another approach is to provide CPMM pricing, but bound execution prices by the oracle price in the direction unfavourable to the LP.
+  %
+  This is similar to the pricing function approach in that the CPMM preference curve discourages trading that would push the inventory too far from the desired balance, but the normalisation of this curve updates only when the AMM accepts a trade, rather than when the oracle updates.
+  %
+  The hybrid model has the benefit of ease of implementation.
+  
+\end{example}
+
 \subsection{Design goals}
 
 A successful implementation of a Feedlot AMM should have the following properties:
@@ -431,17 +441,25 @@ Pragmatically, a reasonable approach would be to maintain the order book in the 
 \subsection{Can the batch itself settle on Feedlot?}
 \label{solution-on-feedlot}
 
-Certain configurations would allow the solution to both settle orders on Feedlot and quote it a price.
+Certain configurations would allow the solution itself to both settle orders on Feedlot and quote it a price.
 %
 Evidently, this can only happen if Feedlot orders are executed \emph{after} execution of the solution but \emph{before} verifying that the solution satisfied all the orders it claimed to satisfy.
+%
+We call this model \emph{CoW native}, because in this case only the CoW batch solution can interact directly with the AMM; here Feedlot acts as a kind of private liquidity pool for solvers.
+%
+Note also that in this case, AMM orders do not have to wait in a queue to be executed (though of course, the user orders being settled by the batch had to wait for the batch as usual).
 
 Implemented na\"ively, this design permits the winning solver to quote any price at all and have it instantly execute against Feedlot.
 %
 Since the solver's objective is to get the most favourable price possible for its users, a rational solver will quote the least favourable price that Feedlot will accept.
 %
 Naturally, allowing an entity to trade against the AMM at any price it chooses is trivially exploitable to the detriment of LPs, and so special care has to be taken to address this case.
-
+%
 While the ability for solvers to both set prices and trade at those prices on Feedlot persists even when the batch  itself cannot settle on Feedlot --- see \S\ref{security} --- this design is the only situation in which doing so is completely risk-free for the solver.
+
+Nonetheless, some of the mitigation strategies discussed in \S\ref{mitigation} still apply to this case.
+%
+By adjusting the solver objective function and by carefully defining and monitoring solver activities, it may be possible to make a CoW native AMM that protects its LPs from adverse selection while providing a safe execution environment for solvers.
 
 
 \begin{comment}
@@ -637,7 +655,7 @@ Hence, risk-free price manipulation is profitable exactly when $V'>V$.
 More generally, trading on Feedlot subsidises the manipulation by an amount depending on the `real' volume on CoW.
 
 \subsection{Mitigating the manipulation problem}
-\label{manipulation-enforcement}
+\label{mitigation}
 
 Price manipulation is a fundamental threat to Feedlot LPs and centralisation vector for CoW protocol itself. 
 %
@@ -715,7 +733,9 @@ This construction is contingent on a sufficient `uninformed' order flow arriving
 
 \paragraph{Simulations.}
 
-We simulated the portfolio metrics of LPs for a simple Feedlot implementation which jumps into a higher fee bracket if inventory balance (in the sense discussed in \S\ref{price-feed}) goes outside an interval $[\kappa^{-1},\kappa]$, where $\kappa>1$.
+We simulated the portfolio metrics of LPs for a simple Feedlot implementation which rejects trades that would push inventory balance (in the sense discussed in \S\ref{price-feed}) outside an interval $[\kappa^{-1},\kappa]$, where $\kappa>1$.
+%
+We also compared this with the hybrid model that uses a CPMM preference curve.
 %
 We used three types of data source for order flow:
 \begin{enumerate}
@@ -725,7 +745,7 @@ We used three types of data source for order flow:
 \end{enumerate}
 The trades datasets used for simulations 1 and 2 are the same ones used in \S\ref{price-analysis}; see there for details.
 %
-The datasets don't record whether the trades arose from buy or sell orders, or what the limits were, so for simplicity that all orders were market sell orders.\footnote{The advantage of using sell orders over buy orders is that it automatically guarantees finiteness of the traders' own inventories, which would otherwise have to be managed to avoid infinite price market buys.}
+The datasets don't record whether the trades arose from buy or sell orders, or what the limits were, so for simplicity we made the ansatz that all orders were market sell orders.\footnote{The advantage of using sell orders over buy orders is that it automatically guarantees finiteness of the traders' own inventories, which would otherwise have to be managed to avoid infinite price market buys.}
 %
 For comparison, we also simulated the same order flow against a CPMM.
 
@@ -788,6 +808,7 @@ With the single hop gas adjustments, which serve as a hard lower bound, traders 
       \begin{center}
         \includegraphics[width=.9\textwidth]
           {diagrams/weth_buy_hist.eps}
+          %\caption{CoW price deviation, buying WETH for USDC}
       \end{center}
    \end{minipage}%
     %
@@ -795,20 +816,24 @@ With the single hop gas adjustments, which serve as a hard lower bound, traders 
       \begin{center}
         \includegraphics[width=.9\textwidth]
           {diagrams/weth_sell_hist.eps}
+          %\caption{CoW price deviation, selling WETH for USDC}
       \end{center}
     \end{minipage}
   \end{center}
+  \caption{WETH/USDC price deviation on CoW, aggregated from September 2021 to March 2023 and separated into buy and sell side for CoW and Univ3. Note that sell side had much larger volume over the period due to general market conditions.}
 \end{figure}
 
 \begin{figure}
   \begin{center} 
     \includegraphics[width=\textwidth * \real{0.7}]{diagrams/weth_buy_line.eps}
+    \caption{buy side}
   \end{center}
 \end{figure}
 
 \begin{figure}
   \begin{center} 
     \includegraphics[width=\textwidth * \real{0.7}]{diagrams/weth_sell_line.eps}
+    \caption{sell side}
   \end{center}
 \end{figure}
 
@@ -851,7 +876,7 @@ However, na\"ively limiting volume in terms of the volume on CoW is not sufficie
 %
 Furthermore, if the scale of traditional derivative markets is anything to go by, there is likely to be interest in increasing the allowable volume to many times the volume of the CoW batch itself.
 %
-We recommend that further resources be committed to research mitigation and enforcement methodology, with some more specific suggestions outlined in \S\ref{manipulation-enforcement}.
+We recommend that further resources be committed to research mitigation and enforcement methodology, with some more specific suggestions outlined in \S\ref{mitigation}.
 
 
 \printbibliography
