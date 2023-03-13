@@ -25,7 +25,7 @@ class AMMPoolHistory:
             self.history.append({"ts": ts, "reserve0": tmp0, "reserve1": tmp1})
             self.reserves[0] = tmp0
             self.reserves[1] = tmp1
-            return
+            return amt0, amt1
         elif tmp0 < 0:
             raise ReserveDepletedError(0)
         elif tmp1 < 0:
@@ -45,7 +45,7 @@ class AMMPool:
         if tmp0 >= 0 and tmp1 >= 0:
             self.reserves[0] = tmp0
             self.reserves[1] = tmp1
-            return
+            return amt0, amt1
         elif tmp0 < 0:
             raise ReserveDepletedError(0)
         elif tmp1 < 0:
@@ -69,7 +69,7 @@ class CPMM:
 
     def market_order(self, amt: int, direction: str, token: int, *args, **kwargs):
         amt = amt if direction == "BUY" else -amt
-        self.market_order_buy(amt, token, *args, **kwargs)
+        return self.market_order_buy(amt, token, *args, **kwargs)
 
     def market_order_sell(self, amt: int, token: int, *args, **kwargs):
         """Token must be either 0 or 1."""
@@ -85,7 +85,7 @@ class CPMM:
         else:
             amt0 = sell_amt
             amt1 = -amt
-        self.pool.swap(amt0, amt1, *args, **kwargs)
+        return self.pool.swap(amt0, amt1, *args, **kwargs)
 
 from collections import deque
 from typing import Iterable
@@ -188,3 +188,24 @@ class ConcLiquidityPool(OraclePool):
                 self.pool.swap(-p_ext*amt, amt)
             return True
 
+
+padding = 1.03
+
+@dataclass
+class AMMWithBaulking:
+    """
+    This class must be initiated with a price feed that includes all
+    timestamps at which trades occur.
+    """
+    amm: CPMM # or whatever AMM class
+    target_prices: dict[int, float] # or pd.Series
+
+    def maybe_market_order_sell(self, amt, token, ts):
+        amt0, amt1 = self.amm.market_order_sell(amt, token, ts)
+        if token == 0 and - amt1 / amt0 < self.target_prices[ts] / padding:
+            self.amm.pool.swap(-amt0, -amt1, ts) # undo the swap
+            return 0, 0
+        elif token == 1 and - amt1 / amt0 > self.target_prices[ts] * padding:
+            self.amm.pool.swap(-amt0, -amt1, ts) # undo the swap
+            return 0, 0
+        return amt0, amt1
