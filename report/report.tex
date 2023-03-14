@@ -56,9 +56,9 @@
 
 This article is a feasibility study for a class of automated market makers (AMMs), collectively dubbed \emph{Feedlot}, that passively provide liquidity at a price based on the uniform clearing price (UCP) of a competitive batch auction such as CoW protocol.
 %
-If implemented properly, liquidity providers on Feedlot AMMs should enjoy protection from the adverse selection that plagues CFMM LPs, and oracle fees could provide a new revenue stream for the batch auction provider itself.
+If appropriately implemented, liquidity providers on Feedlot AMMs should enjoy protection from the adverse selection that plagues CFMM LPs, and oracle fees could provide a new revenue stream for the batch auction provider itself.
 
-We review general principles of designing CFMMs and pricing oracles; propose an architecture for a channel through which the CoW UCP is communicated to a liquidity pool; and review the security implications for CoW and the pool of consuming the UCP to execute additional trades. We study from theoretical and empirical perspectives the economic implications for traders and LPs that a functioning Feedlot implementation would entail.
+We review general principles of designing CFMMs and pricing oracles; propose an architecture for a channel through which the CoW UCP is communicated to a liquidity pool; and review the security implications for CoW and trading through the UCP liqudity pool. From theoretical and empirical perspectives, we study the economic implications for traders and LPs that a functioning Feedlot implementation would entail.
 
 This article is not a whitepaper, specification, or fully fleshed out proposal, and it makes no claim to exhaustiveness or completeness on any of the topics discussed --- particularly security. 
 %
@@ -88,7 +88,7 @@ Among these, blockchain implementations of the \emph{RFQ batch auction model} so
 %
 This price is provided by the winner of a competition to find routes for orders that maximise the welfare of their creators.
 
-Another class of proposals adopt the idea of adjusting pricing using an external price feed \cite{dodoex,synthetixlitepaper}.
+Another class of proposals adopts the idea of adjusting pricing using an external price feed \cite{dodoex,synthetixlitepaper}.
 %
 If this price feed is sufficiently reliable, passive liquidity providers can mitigate or even entirely avoid losses to adverse selection.
 %
@@ -98,11 +98,11 @@ A typical price feed pipeline has several phases that could fail --- by accident
 %
 Examples of cases where financial losses have occurred as a result of relying on such feeds are plentiful \cite{liu2021first, cryptocat2020how, venus2022luna, eskandari2021sok}.
 
-In this report, we discuss a proposal to use the UCP provided by an RFQ batch auction with on-chain settlement --- specifically, CoW protocol\footnote{\url{https://docs.cow.fi}} --- to adjust the pricing of a liquidity pool.
+This report discusses a proposal to use the UCP provided by an RFQ batch auction with on-chain settlement --- specifically, CoW protocol\footnote{\url{https://docs.cow.fi}} --- to adjust the pricing of a liquidity pool.
 %
-The fact that the UCP is used to settle a batch auction means that it has a unique guarantee not shared by other price oracle data sources: it is \emph{realisable} in the sense that it comes with an on-chain proof that it could actually be used to execute trades (at least, before the batch).\footnote{In the language of \cite{suresh2022so}, it is backed by \emph{trade collateral}.}
+The fact that the UCP is used to settle a batch auction means that it has a unique guarantee not shared by other price oracle data sources: it is \emph{realisable} in the sense that it comes with an on-chain proof that it could be used to execute trades (at least, before the batch).\footnote{In the language of \cite{suresh2022so}, it is backed by \emph{trade collateral}.}
 
-We give the working name \emph{Feedlot} to a hypothetical AMM based on this model.
+Based on this model, we give the working name \emph{Feedlot} to a hypothetical AMM.
 %
 
 The rest of this report is structured as follows: in \S\ref{general}, we review general principles of designing CFMMs and pricing oracles; 
@@ -111,7 +111,7 @@ in \S\ref{architecture} we discuss the channel through which the UCP is communic
 %
 in \S\ref{security} we review the security implications for CoW and Feedlot of consuming the UCP to execute additional trades;
 %
-finally, in \S\ref{impact} we study from theoretical and empirical perspectives the economic implications for traders and LPs that a functioning Feedlot implementation would entail.
+finally, in \S\ref{impact} we study the economic implications for traders and LPs that a functioning Feedlot implementation would entail from theoretical and empirical perspectives.
 
 
 \section{General design principles}
@@ -783,24 +783,29 @@ We identified three legitimate reasons:
 \section{How good a price oracle is CoW?}
 \label{price-analysis}
 
-The structure of Feedlot implicitly assumes that the CoW UCP is a kind of non-directional market midrate to which we can add spread in the form of trading fees.
+The structure of Feedlot implicitly assumes that the CoW UCP is a bi-directional market midrate in which spread is created from trading fees.
 %
-However, in practice, most volume on CoW settles on AMMs and so has some spread already baked into it.
+However, in practice, since most volume on CoW settles on AMMs there is an intrinsic spread baked into the CoW UCP.
 %
-How much error does this spread introduce, and how does CoW measure up against other non-directional pricing data feeds?
-
+How much error does this spread introduce, and how does CoW measure against other bi-directional pricing data feeds?
+%
 To study this, we obtained trade data for WETH/USDC orders on CoW, Uniswap v3 USDC/WETH 5bps and 30 bps fee pool swaps, and ETH/USD Chainlink oracle price data from August 2021 to March 2023. 
 %
-We made an adjustment to the Univ3 spot prices to account for gas transaction costs. 
-%
-Since we only had access to the gas limit, which is an upper bound for the amount of gas used in a Univ3 transaction, we used the median gas limit (around 312,218 gas) as an heuristic to calculate the transaction cost. 
-%
-For reference, a single Univ3 swap transaction starts at around 130,000 gas. 
-%
-Thus we can interpret the median value as assuming the average Univ3 swap goes through a little more than 2 hops on average.
+We observed 43,514 CoW trades, 410,240 Uniswap v3 swaps, and 124,876 Chainlink price updates. 
 
-With the median gas adjustments, traders receieved a 1.2\% discount to buy and sell WETH through CoW.
-With the single hop gas adjustments, which serve as a hard lower bound, traders receieved a .43\% discount to buy and sell WETH.
+We found that CoW traders receieve favorable bi-directional rates compared to trading on Univ3 with a lower bound of 0.49\% and an upper bound of 0.51\% on average. 
+
+\paragraph{Uniswap v3 gas adjustments.}
+Since CoW traders do not pay gas prices, we adjusted Univ3 spot prices to account for gas transaction costs.
+%
+Since we only had access to the gas limit, as an upper bound for the amount of gas used in a Univ3 transaction, we used the median gas limit (around 312,218 gas) as a heuristic to calculate the transaction cost. 
+%
+We also calculated a lower bound by assuming the gas used is equivalent to a single Univ3 swap transaction, which costs around 130,000 gas. 
+%
+Thus we can interpret the median value as assuming the average Univ3 swap goes through a little more than two hops on average.
+
+With the median gas adjustments, CoW traders received a 1.45\% discount to buy WETh and a 1.56\% premium to sell WETH on average.
+With the single hop gas adjustments, which serve as a hard lower bound, CoW traders received a 0.49\% discount to buy WETH and 0.51\% premium to sell WETH on average.
 
 \begin{figure}
   \begin{center}
@@ -820,20 +825,20 @@ With the single hop gas adjustments, which serve as a hard lower bound, traders 
       \end{center}
     \end{minipage}
   \end{center}
-  \caption{WETH/USDC price deviation on CoW, aggregated from September 2021 to March 2023 and separated into buy and sell side for CoW and Univ3. Note that sell side had much larger volume over the period due to general market conditions.}
+  \caption{WETH/USDC single hop gas adjustment price deviation on CoW, aggregated from August 2021 to March 2023 and separated into buy and sell side for CoW and Univ3. Note that sell count was 8,120 and the buy count was 3,025. The imbalance is attributed to the general market conditions during this period.}
 \end{figure}
 
 \begin{figure}
   \begin{center} 
     \includegraphics[width=\textwidth * \real{0.7}]{diagrams/weth_buy_line.eps}
-    \caption{buy side}
+    \caption{CoW buy side price execution compared to Uniswap v3 and Chainlink from October 2022 - March 2023}
   \end{center}
 \end{figure}
 
 \begin{figure}
   \begin{center} 
     \includegraphics[width=\textwidth * \real{0.7}]{diagrams/weth_sell_line.eps}
-    \caption{sell side}
+    \caption{CoW sell side price execution compared to Uniswap v3 and Chainlink from October 2022 - March 2023}
   \end{center}
 \end{figure}
 
@@ -843,13 +848,13 @@ With the single hop gas adjustments, which serve as a hard lower bound, traders 
 
 \paragraph{Dataset.} Our dataset consists of Ethereum log data, which records certain on-chain events such as trades. It was sourced from The Graph, a blockchain data indexing service.\footnote{https://thegraph.com/}
 %
-More precisely, we used the Univ3, CoW, and Chainlink subgraphs curated by Messari, an analytics provider.\footnote{https://thegraph.com/explorer/subgraphs/ELUcwgpm14LKPLrBRuVvPvNKHQ9HvwmtKgKSH6123cr7}
+More precisely, we used the Univ3, CoW, and Chainlink subgraphs curated by Messari, an analytics provider.\footnote{https://subgraphs.messari.io/}
 %
-Full details and our codebase are available [WHERE?].
+Full details and our codebase are available [LINK TO FEEDLOT REPO?].
 
 \begin{comment}
 %To perform this task, we utilized the DataStreams python library, which is a subgraph query utility package. 
-%We performed merges and data transformations with Polars.\footnote{link to Polar}
+%We performed merges and data transformations with Polars.\footnote{link to Polar https://github.com/pola-rs/polars}
 %Polars follows the Apache Arrow standards which is a in-memory columnar analytics standard in the industry. 
 \end{comment}
 
