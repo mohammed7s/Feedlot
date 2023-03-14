@@ -63,3 +63,4 @@ MANIFEST
 /pipeline/*.parquet
 
 /*.parquet
+/myenv
