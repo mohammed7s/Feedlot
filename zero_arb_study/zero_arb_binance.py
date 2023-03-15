@@ -136,8 +136,7 @@ while(True):
 		    url_vwap = f'https://api.binance.com/api/v3/depth?symbol={symbol}&limit=200'
 		    r_vwap = requests.get(url_vwap)
 		    data_vwap = r_vwap.json()
-		    print('test_data', data_vwap)
-		    print('test_data2', len(data_vwap['bids']))
+		    print('len of bids', len(data_vwap['bids']))
 		    if len(data_vwap['bids']) != len(data_vwap['asks']):
 		        return 'value_error'
 		    df_vwap = pd.DataFrame(data_vwap)
