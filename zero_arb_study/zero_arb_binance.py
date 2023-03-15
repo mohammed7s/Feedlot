@@ -136,6 +136,8 @@ while(True):
 		    url_vwap = f'https://api.binance.com/api/v3/depth?symbol={symbol}&limit=200'
 		    r_vwap = requests.get(url_vwap)
 		    data_vwap = r_vwap.json()
+		    print('test_data', data_vwap)
+		    print('test_data2', len(data_vwap['bids']))
 		    if len(data_vwap['bids']) != len(data_vwap['asks']):
 		        return 'value_error'
 		    df_vwap = pd.DataFrame(data_vwap)
@@ -194,6 +196,7 @@ while(True):
 		    print(f'price for {symbol} is {price}')
 		    
 		    # adjust price by vwap estimate 
+		    print('qty', qty)
 		    ob = get_price_at_qty(symbol,qty)
 		    print('ob', ob)
 		    if ob != 'value_error':
@@ -210,6 +213,7 @@ while(True):
 		    return price_final 
 
 		# test the binance_pairs array available
+
 		if 'PERPUSDT' in binance_pairs.values:
 		    print('True')
 		else: 
