@@ -6,6 +6,11 @@ import time
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import warnings
+
+# Ignore warnings from showing on the app 
+warnings.filterwarnings("ignore")
+
 
 def run_app():
 	@st.cache(ttl=900) # set TTL (time to live) to 900 seconds (15minutes)

@@ -241,9 +241,10 @@ while(True):
 		        
 		        
 			elif sell_pair == 'DAIUSDT':
-				usdtdai = query_binance('USDTDAI', timestamp, buyTokenQty, True)
-				if usdtdai != 'value_error':
-					sell_token_price = 1 / query_binance('USDTDAI', timestamp, sellTokenQty, False)
+				usdtdai = query_binance('USDTDAI', timestamp, sellTokenQty, False)
+				print('usdtdai result', usdtdai)
+				if usdtdai != 'value_error' and type(usdtdai)==float and usdtdai!= 0 :
+					sell_token_price = 1 / usdtdai
 				else:
 					return 'value_error'        
 		        
@@ -268,8 +269,8 @@ while(True):
 		        
 			elif buy_pair == 'DAIUSDT':
 				usdtdai = query_binance('USDTDAI', timestamp, buyTokenQty, True)
-				if usdtdai != 'value_error':
-					buy_token_price = 1 / query_binance('USDTDAI', timestamp, buyTokenQty, True)
+				if usdtdai != 'value_error' and float(usdtdai) == 0 and usdtdai!=0 :
+					buy_token_price = 1 / usdtdai
 				else:
 					return 'value_error'
 		    
