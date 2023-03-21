@@ -64,3 +64,11 @@ MANIFEST
 
 /*.parquet
 /myenv
+
+# LaTeX auxiliary files
+report/build/*.bbl
+report/build/*.blg
+report/build/*.bcf
+report/build/*.aux
+report/build/*.run.xml
+report/build/*.synctex.gz
