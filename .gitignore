@@ -64,6 +64,7 @@ MANIFEST
 
 /*.parquet
 /myenv
+/sim/*.csv
 
 # LaTeX auxiliary files
 report/build/*.bbl

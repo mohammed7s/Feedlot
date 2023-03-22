@@ -202,10 +202,10 @@ class AMMWithBaulking:
 
     def maybe_market_order_sell(self, amt, token, ts):
         amt0, amt1 = self.amm.market_order_sell(amt, token, ts)
-        if token == 0 and - amt1 / max(amt0, 1) < self.target_prices[ts] / padding:
+        if token == 0 and - amt1 / amt0 < self.target_prices[ts] / padding:
             self.amm.pool.swap(-amt0, -amt1, ts) # undo the swap
             return 0, 0
-        elif token == 1 and - amt1 / max(amt0, 1) > self.target_prices[ts] * padding:
+        elif token == 1 and - amt1 / amt0 > self.target_prices[ts] * padding:
             self.amm.pool.swap(-amt0, -amt1, ts) # undo the swap
             return 0, 0
         return amt0, amt1
