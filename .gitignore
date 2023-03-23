@@ -61,11 +61,10 @@ MANIFEST
 /quantitative_results/data/*
 /quantitative_results/old/*
 /quantitative_results/*.parquet
-/quantitative_results/*sim/
 
 /*.parquet
 /myenv
-/sim/*.csv
+/quantitative_results/sim/*.csv
 
 # LaTeX auxiliary files
 report/build/*.bbl
