@@ -27,9 +27,13 @@ class AMMPoolHistory:
             self.reserves[1] = tmp1
             return amt0, amt1
         elif tmp0 < 0:
-            raise ReserveDepletedError(0)
+            # raise ReserveDepletedError(0)
+            # print('ReserveDepleted')
+            return 0,0
         elif tmp1 < 0:
-            raise ReserveDepletedError(1)
+            # raise ReserveDepletedError(1)
+            # print('ReserveDepleted')
+            return 0,0
 
 class AMMPool:
     def __init__(self, reserve0, reserve1):
@@ -47,9 +51,13 @@ class AMMPool:
             self.reserves[1] = tmp1
             return amt0, amt1
         elif tmp0 < 0:
-            raise ReserveDepletedError(0)
+            # raise ReserveDepletedError(0)
+            print('ReserveDepleted')
+            return 0,0
         elif tmp1 < 0:
-            raise ReserveDepletedError(1)
+            # raise ReserveDepletedError(1)
+            print('ReserveDepleted')
+            return 0,0
 
 @dataclass
 class CPMM:
