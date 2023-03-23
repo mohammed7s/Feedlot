@@ -58,9 +58,10 @@ MANIFEST
 .conda*/
 .python-version
 /vcow*
-/pipeline/data/*
-/pipeline/old/*
-/pipeline/*.parquet
+/quantitative_results/data/*
+/quantitative_results/old/*
+/quantitative_results/*.parquet
+/quantitative_results/*sim/
 
 /*.parquet
 /myenv
