@@ -197,7 +197,6 @@ class ConcLiquidityPool(OraclePool):
             return True
 
 
-padding = 1.03
 
 @dataclass
 class AMMWithBaulking:
@@ -207,6 +206,7 @@ class AMMWithBaulking:
     """
     amm: CPMM # or whatever AMM class
     target_prices: dict[int, float] # or pd.Series
+    tolerance: float = 1.01 
 
     def maybe_market_order_sell(self, amt, token, ts):
         amt0, amt1 = self.amm.market_order_sell(amt, token, ts)
@@ -215,10 +215,36 @@ class AMMWithBaulking:
         if amt0 == 0:    # zero by division check. If amt0 equals 0, skip the trade.
             return 0,0
         else:
-            if token == 0 and - amt1 / amt0 < self.target_prices[ts] / padding:
+            if token == 0 and - amt1 / amt0 < self.target_prices[ts] / self.tolerance:
                 self.amm.pool.swap(-amt0, -amt1, ts) # undo the swap
                 return 0, 0
-            elif token == 1 and - amt1 / amt0 > self.target_prices[ts] * padding:
+            elif token == 1 and - amt1 / amt0 > self.target_prices[ts] * self.tolerance:
                 self.amm.pool.swap(-amt0, -amt1, ts) # undo the swap
                 return 0, 0
             return amt0, amt1
+        if token == 0 and - amt1 / amt0 < self.target_prices[ts] / self.tolerance:
+            self.amm.pool.swap(-amt0, -amt1, ts) # undo the swap
+            return 0, 0
+        elif token == 1 and - amt1 / amt0 > self.target_prices[ts] * self.tolerance:
+            self.amm.pool.swap(-amt0, -amt1, ts) # undo the swap
+            return 0, 0
+        return amt0, amt1
+
+@dataclass
+class RebalancingPool:
+    """
+    Initialize with an AMMPool[History] and oracle in the form of an 
+    iterable of {"ts": int, "p": float}
+    Reserve[1] is the numeraire (sorry).
+    """
+    pool: AMMPool
+    oracle: Iterable[dict] # pass time_price_df.iterrows()
+
+    def __post_init__(self):
+        for row in self.oracle:
+            self.update_once(row["p"], row["ts"])
+
+    def update_once(self, p, ts=0):
+        delta_x = (self.pool.reserves[0] / p - self.pool.reserves[1]) / 2
+        delta_y = (-self.pool.reserves[0] + self.pool.reserves[1] * p) / 2
+        self.pool.swap(delta_x, delta_y, ts)

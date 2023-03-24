@@ -73,3 +73,7 @@ report/build/*.bcf
 report/build/*.aux
 report/build/*.run.xml
 report/build/*.synctex.gz
+
+# drawio temporary files
+report/diagrams/*.drawio.bkp
+report/diagrams/*.drawio.dtmp

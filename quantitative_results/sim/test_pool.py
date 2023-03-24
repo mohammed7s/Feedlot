@@ -96,3 +96,12 @@ def test_baulking():
     x,y = T.maybe_market_order_sell(1000, 1, 1002)
     assert x==0 and y==0
     assert P.reserves[0] == r0 and P.reserves[1] == r1
+
+def test_rebalancing():
+    P = AMMPoolHistory(100,100)
+    oracle = [
+        {"ts": 1000, "p": 2},
+    ]
+    R = RebalancingPool(P, oracle)
+    assert R.pool.reserves[0] == 75
+    assert R.pool.reserves[1] == 150
