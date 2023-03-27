@@ -737,23 +737,30 @@ We simulated the portfolio metrics of LPs for a simple Feedlot implementation wh
 %
 We also compared this with the hybrid model that uses a CPMM preference curve.
 %
-We used three types of data source for order flow:
+We used two types of data source for order flow:
 \begin{enumerate}
-  \item Trades on CoW;
-  \item Trades on UniswapV3;
+  \item Trades on UniswapV3 occuring at the same time as CoW;
   \item Randomly generated `zero-intelligence' order flow (Poisson arrivals, uniform direction, exponential size).
 \end{enumerate}
-The trades datasets used for simulations 1 and 2 are the same ones used in \S\ref{price-analysis}; see there for details.
+The trades datasets are the same data used in \S\ref{price-analysis}; see there for details.
 %
 The datasets don't record whether the trades arose from buy or sell orders, or what the limits were, so for simplicity we made the ansatz that all orders were market sell orders.\footnote{The advantage of using sell orders over buy orders is that it automatically guarantees finiteness of the traders' own inventories, which would otherwise have to be managed to avoid infinite price market buys.}
 %
-For comparison, we also simulated the same order flow against a CPMM.
-
+We simulate portfolio data from February 2022 - March 2023. 
+%
+Results show that LP profitability is highly correlated between Feedlot and the CPMM. 
+%
+The Feedlot profitability could be thought of as leveraged CPMM profits due to the portfolio reserve composition skewing towards ETH.
 [DATA GOES HERE]
 
-Results show that 
-
-* Without inventory balancing controls, the pool TVL is exposed to local order flow directionality as well as asset prices. Local order flow is probably hard to model and in real life would depend on how competitive the pool's prices are compared to other markets.
+%
+There are limitations to our simulations. Without inventory balancing controls, the pool TVL is exposed to local order flow directionality as well as asset prices. 
+%
+Local order flow is probably hard to model and in real life would depend on how competitive the pool's prices are compared to other markets. 
+%
+Additionally, trade flow is aggregated between the single pair 5 and 30 bps Univ3 WETH/USDC pools and matched on CoW trade timestamps. This means the order flow is a coarser representation than the actual order flow occuring during the same time period. 
+%
+Finally, we do not implement dynamic fees and analyze fees on the effects of LP profitability. 
 
 \subsection{For traders}
 
@@ -852,7 +859,7 @@ With the single hop gas adjustments, which serve as a hard lower bound, CoW trad
 
 \paragraph{Dataset.} Our dataset consists of Ethereum log data, which records certain on-chain events such as trades. It was sourced from The Graph, a blockchain data indexing service.\footnote{https://thegraph.com/}
 %
-More precisely, we used the Univ3, CoW, and Chainlink subgraphs curated by Messari, an analytics provider.\footnote{https://subgraphs.messari.io/}
+More precisely, we used the Univ3, CoW, and Chainlink subgraphs curated by Messari, a crypto analytics provider.\footnote{https://subgraphs.messari.io/}
 %
 Full details and our codebase are available [LINK TO FEEDLOT REPO?].
 
