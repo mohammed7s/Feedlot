@@ -242,9 +242,11 @@ class RebalancingPool:
 
     def __post_init__(self):
         for row in self.oracle:
-            self.update_once(row["p"], row["ts"])
+            ret = self.update_once(row["p"], row["ts"])
+            #logger.debug(f"Rebalanced {ret}")
 
     def update_once(self, p, ts=0):
-        delta_x = (self.pool.reserves[0] / p - self.pool.reserves[1]) / 2
-        delta_y = (-self.pool.reserves[0] + self.pool.reserves[1] * p) / 2
-        self.pool.swap(delta_x, delta_y, ts)
+        delta_x = (- self.pool.reserves[0]     + self.pool.reserves[1] / p) / 2
+        delta_y = (  self.pool.reserves[0] * p - self.pool.reserves[1]    ) / 2
+        #logger.debug(f"Need to rebalance by {delta_x}, {delta_y}.")
+        return self.pool.swap(delta_x, delta_y, ts)
