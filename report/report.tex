@@ -733,10 +733,10 @@ This construction is contingent on a sufficient `uninformed' order flow arriving
 
 \paragraph{Simulations.}
 
-We simulated the portfolio metrics of LPs for a simple Feedlot implementation which rejects trades that would push inventory balance (in the sense discussed in \S\ref{price-feed}) outside an interval $[\kappa^{-1},\kappa]$, where $\kappa>1$.
+We simulated the portfolio metrics of LPs for a simple Feedlot implementation with passthrough pricing.
 %
-We also compared this with the hybrid model that uses a CPMM preference curve.
-%
+For comparison, we also simulated a simple feeless CPMM.
+
 We used two types of data source for order flow:
 \begin{enumerate}
   \item Trades on UniswapV3 occuring at the same time as CoW;
@@ -746,19 +746,32 @@ The trades datasets are the same data used in \S\ref{price-analysis}; see there 
 %
 The datasets don't record whether the trades arose from buy or sell orders, or what the limits were, so for simplicity we made the ansatz that all orders were market sell orders.\footnote{The advantage of using sell orders over buy orders is that it automatically guarantees finiteness of the traders' own inventories, which would otherwise have to be managed to avoid infinite price market buys.}
 %
-We simulate portfolio data from February 2022 - March 2023. 
+We simulate the reserve balance sheet from February 2022 - March 2023. 
 %
-Results show that LP profitability is highly correlated between Feedlot and the CPMM. 
+TVL, or portfolio value, is computed using the most recent Chainlink price.
+
+The simulated LP inventory valuations of Feedlot and the CPMM are highly correlated, which probably reflects coupling to the underlying price index.
 %
-The Feedlot profitability could be thought of as leveraged CPMM profits due to the portfolio reserve composition skewing towards ETH.
+This coupling is especially noticeable on Feedlot in the latter part of the simulation period, when reserves became heavily skewed towards WETH.
+%
+Unsurprisingly, throughout the period, Feedlot's reserve balance is highly volatile and does not obviously converge on an equilibrium.
 [DATA GOES HERE]
 
+\begin{figure}
+  \begin{center}
+  \caption{For reference, the performance of the rebalancing portfolio --- the unique self-financing strategy that targets a 50-50 inventory balance and trades at the CoW oracle price --- is plotted in grey. The distance between the grey line and the gold CPMM line is LVR.}
+  \end{center}
+\end{figure}
+
+There are limitations to our simulations. 
 %
-There are limitations to our simulations. Without inventory balancing controls, the pool TVL is exposed to local order flow directionality as well as asset prices. 
+Although the order flow data used as input is real historical data, it was generated in different trading conditions to the ones simulated and so cannot be considered completely realistic.
 %
-Local order flow is probably hard to model and in real life would depend on how competitive the pool's prices are compared to other markets. 
+This is especially salient for Feedlot, whose portfolio balance is sensitive to local order flow directionality which is likely to depend on local inefficiencies that are not practical to simulate here.
 %
-Additionally, trade flow is aggregated between the single pair 5 and 30 bps Univ3 WETH/USDC pools and matched on CoW trade timestamps. This means the order flow is a coarser representation than the actual order flow occuring during the same time period. 
+Despite this, note that the CPMM reserve balance remains close to even, as one would expect in a real-life equilibrium with a population of rational arbitrageurs.
+
+Trade flow is aggregated between the single pair 5 and 30 bps Univ3 WETH/USDC pools and matched on CoW trade timestamps. This means the order flow is a coarser representation than the actual order flow occuring during the same time period. 
 %
 Finally, we do not implement dynamic fees and analyze fees on the effects of LP profitability. 
 
@@ -880,7 +893,7 @@ It would also yield a new revenue stream for CoW protocol in the form of oracle 
 
 The question of whether a safe implementation is possible requires further research.
 %
-While the guarantees of CoW itself provide that a Feedlot oracle is always `truthful,' the difficult problem of preventing or discouraging the reporting of an `artificial' (albeit truthful) price --- a price under a centralised influence by a manipulatin attacker --- remains a challenge. 
+While the guarantees of CoW itself provide that a Feedlot oracle is always `truthful,' the difficult problem of preventing or discouraging the reporting of an `artificial' (albeit truthful) price --- a price under a centralised influence by a manipulating attacker --- remains a challenge. 
 %
 A team wishing to implement a Feedlot AMM must take great care to ensure that it does not make the CoW UCP an economically viable target for manipulation, inviting harm on Feedlot LPs and users and stakeholders of CoW protocol alike.
 %
