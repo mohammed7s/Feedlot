@@ -220,13 +220,7 @@ class AMMWithBaulking:
                 self.amm.pool.swap(-amt0, -amt1, ts) # undo the swap
                 return 0, 0
             return amt0, amt1
-        if token == 0 and - amt1 / amt0 < self.target_prices[ts] / self.tolerance:
-            self.amm.pool.swap(-amt0, -amt1, ts) # undo the swap
-            return 0, 0
-        elif token == 1 and - amt1 / amt0 > self.target_prices[ts] * self.tolerance:
-            self.amm.pool.swap(-amt0, -amt1, ts) # undo the swap
-            return 0, 0
-        return amt0, amt1
+
 
 @dataclass
 class RebalancingPool:
