@@ -196,8 +196,6 @@ class ConcLiquidityPool(OraclePool):
                 self.pool.swap(-p_ext*amt, amt)
             return True
 
-
-
 @dataclass
 class AMMWithBaulking:
     """
