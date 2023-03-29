@@ -1,10 +1,5 @@
-Feedlot 
+This repository is an initial study on the feasibility of a surplus capturing AMM design as outlined in the below grant.
 
-cow-3month-download.csv is total trade data for COW protocol mainnet downloaded from dune analytics
-
-To download the same data run dune_csv.py 
-
-To run analysis run amm_research.py 
+https://snapshot.org/#/cowgrants.eth/proposal/0xc668f0c0fd9e92d435aa328e4d4cbdb0c9eb74cdff5bc559a7562e7832d95d13
 
 
-Feedlot working notes as of 1/14/22 - https://hackmd.io/pjEkxZotScKdAWOyBc7TZg
