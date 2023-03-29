@@ -755,13 +755,16 @@ The simulated LP inventory valuations of Feedlot and the CPMM are highly correla
 This coupling is especially noticeable on Feedlot in the latter part of the simulation period, when reserves became heavily skewed towards WETH.
 %
 Unsurprisingly, throughout the period, Feedlot's reserve balance is highly volatile and does not obviously converge on an equilibrium.
-[DATA GOES HERE]
+%
+This results in higher volatility of Feedlot compared to the CPMM.
 
 \begin{figure}
   \begin{center}
+  \includegraphics[width=\textwidth * \real{0.7}]{diagrams/pool_metrics.eps}
   \caption{For reference, the performance of the rebalancing portfolio --- the unique self-financing strategy that targets a 50-50 inventory balance and trades at the CoW oracle price --- is plotted in grey. The distance between the grey line and the gold CPMM line is LVR.}
   \end{center}
 \end{figure}
+
 
 There are limitations to our simulations. 
 %
@@ -853,19 +856,23 @@ With the single hop gas adjustments, which serve as a hard lower bound, CoW trad
 \end{figure}
 
 \begin{figure}
-  \begin{center} 
-    \includegraphics[width=\textwidth * \real{0.7}]{diagrams/weth_buy_line.eps}
-    \caption{CoW buy side price execution compared to Uniswap v3 and Chainlink}
+  \begin{center}
+    \begin{minipage}{.5\textwidth}
+      \begin{center}
+        \includegraphics[width=.9\textwidth]
+          {diagrams/weth_buy_line.eps}
+      \end{center}
+   \end{minipage}%
+    %
+    \begin{minipage}{.5\textwidth}
+      \begin{center}
+        \includegraphics[width=.9\textwidth]
+          {diagrams/weth_sell_line.eps}
+      \end{center}
+    \end{minipage}
   \end{center}
+  \caption{CoW buy (left) and sell (right) side price execution compared to Uniswap v3 and Chainlink}
 \end{figure}
-
-\begin{figure}
-  \begin{center} 
-    \includegraphics[width=\textwidth * \real{0.7}]{diagrams/weth_sell_line.eps}
-    \caption{CoW sell side price execution compared to Uniswap v3 and Chainlink}
-  \end{center}
-\end{figure}
-
 
 
 
@@ -874,7 +881,7 @@ With the single hop gas adjustments, which serve as a hard lower bound, CoW trad
 %
 More precisely, we used the Univ3, CoW, and Chainlink subgraphs curated by Messari, a crypto analytics provider.\footnote{https://subgraphs.messari.io/}
 %
-Full details and our codebase are available [LINK TO FEEDLOT REPO?].
+Full details and our codebase are available \footnote{Feedlot Repo https://github.com/mohammed7s/Feedlot}.
 
 \begin{comment}
 %To perform this task, we utilized the DataStreams python library, which is a subgraph query utility package. 
