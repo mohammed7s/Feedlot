@@ -1,23 +1,10 @@
 # Cowswap Subgraph Query with DataStreams
 
-## Outline:
-### 1. Subgraph Query with DataStreams (cow, chain)
-### 2. Preprocessing all the files in transformations
-### 3. load exploratory notebook to verify the process worked.
+There are two notebooks in this folder:
+'''data_pipeline_final.ipynb''' - used to obtain on-chain historical data from subgraphs. the notebook will cache the dataset locally in a data folder.
+Requirements:
+    * >= Python 3.10
+    * Subgrounds (pip install subgrounds)
+    * Polars (pip install polars)
 
-
-
-
-
-
-
-
-<!-- All of the data in the data folder is stored in Dropbox. 
-To repliate the data setup, download the .zip files and zip them into the data folder. 
-Then all notebooks should run if your directory is pointing to the Feedlot folder (not Feedlot/data folder)
-
-/github/Feedlot/data/chainlink_prices --> raw chainilnk price history
-/github/Feedlot/data/cow-gc_raw -> raw cowswap v2 gnosis chain data
-/github/Feedlot/data/cow_raw -> raw cowswap v2 ethereum data
-/github/Feedlot/data/transformed --> curated datasets. Main dataset is cow_chain_swaps.csv
-/github/Feedlot/data/transformed/chainlink_prices --> preprocessed chainlink price data -->
+'''data_analysis.ipynb''' - used to analyze and produce charts for the report. Run this after the pipeline notebook to reproduce the charts.
