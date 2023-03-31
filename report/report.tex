@@ -102,14 +102,15 @@ This report discusses a proposal to use the UCP provided by an RFQ batch auction
 %
 The fact that the UCP is used to settle a batch auction means that it has a unique guarantee not shared by other price oracle data sources: it is \emph{realisable} in the sense that it comes with an on-chain proof that it could be used to execute trades (at least, before the batch).\footnote{In the language of \cite{suresh2022so}, it is backed by \emph{trade collateral}.}
 
-Based on this model, we give the working name \emph{Feedlot} to a hypothetical AMM.
-%
+We give the working name \emph{Feedlot} to a hypothetical AMM designed on this model.
 
-The rest of this report is structured as follows: in \S\ref{general}, we review general principles of designing CFMMs and pricing oracles; 
+The rest of this report is structured as follows: in \S\ref{general}, we review general principles of AMM design, including CFMMs and pricing oracles; 
 %
 in \S\ref{architecture} we discuss the channel through which the UCP is communicated to a Feedlot liquidity pool; 
 %
 in \S\ref{security} we review the security implications for CoW and Feedlot of consuming the UCP to execute additional trades;
+%
+in \S\ref{price-analysis} we compare the historical performance of the UCP as a price oracle to other approaches to computing market prices;
 %
 finally, in \S\ref{impact} we study the economic implications for traders and LPs that a functioning Feedlot implementation would entail from theoretical and empirical perspectives.
 
@@ -722,7 +723,7 @@ where:
 \end{itemize}
 Discrete-time analogues of the arguments of \emph{op.~cit}.~show that this is a non-negative and non-decreasing process.\footnote{We lose the predictability property, because of course, the discrete-time analogue of a diffusion process is not predictable.} 
 %
-In continuous time, the quantity can be expressed in terms of the instantaneous square volatility $\sigma^2(P)$ and $V''(P)>0$; one can derive similar, though uglier, formulas for the discrete case.
+In continuous time, the quantity can be expressed in terms of the instantaneous price variance $\sigma^2(P)$ and $V''(P)>0$; one can derive similar, though uglier, formulas for the discrete case.
 
 If Feedlot uses passthrough pricing and accepts trades in such a way that its reserves track the rebalancing portfolio, then $R_n$ can also be interpreted as the portfolio value of a Feedlot LP.
 %
@@ -736,32 +737,33 @@ This construction is contingent on a sufficient `uninformed' order flow arriving
 We simulated the portfolio metrics of LPs for a simple Feedlot implementation with passthrough pricing.
 %
 For comparison, we also simulated a simple feeless CPMM.
-
-We used two types of data source for order flow:
-\begin{enumerate}
-  \item Trades on UniswapV3 occuring at the same time as CoW;
-  \item Randomly generated `zero-intelligence' order flow (Poisson arrivals, uniform direction, exponential size).
-\end{enumerate}
-The trades datasets are the same data used in \S\ref{price-analysis}; see there for details.
 %
-The datasets don't record whether the trades arose from buy or sell orders, or what the limits were, so for simplicity we made the ansatz that all orders were market sell orders.\footnote{The advantage of using sell orders over buy orders is that it automatically guarantees finiteness of the traders' own inventories, which would otherwise have to be managed to avoid infinite price market buys.}
+For order flow, we used historical data of trades on UniswapV3 in the period February 2022 -- March 2023.
 %
-We simulate the reserve balance sheet from February 2022 - March 2023. 
+This dataset is the same as the one used in \S\ref{price-analysis}; see there for details.
+%
+The data doesn't record whether the trades arose from buy or sell orders, or what the limits were, so for simplicity we made the ansatz that all orders were market sell orders.\footnote{The advantage of using sell orders over buy orders is that it automatically guarantees finiteness of the traders' own inventories, which would otherwise have to be managed to avoid infinite price market buys.}
 %
 TVL, or portfolio value, is computed using the most recent Chainlink price.
 
 The simulated LP inventory valuations of Feedlot and the CPMM are highly correlated, which probably reflects coupling to the underlying price index.
 %
-This coupling is especially noticeable on Feedlot in the latter part of the simulation period, when reserves became heavily skewed towards WETH.
+This coupling is especially noticeable on Feedlot in the latter part of the simulation period, when the majority of cash reserves were depleted.
 %
+This is visibile in the volatility chart of Figure \ref{pool-metrics}, where towards the end of the period the volatility of the oracle pool inventory lines up with that of the underlying index.
+
 Unsurprisingly, throughout the period, Feedlot's reserve balance is highly volatile and does not obviously converge on an equilibrium.
 %
-This results in higher volatility of Feedlot compared to the CPMM.
+This results in consistently higher volatility of Feedlot compared to the CPMM, though of course, it remains bounded above by that of the underlying index.
 
 \begin{figure}
+  \label{pool-metrics}
   \begin{center}
-  \includegraphics[width=\textwidth * \real{0.7}]{diagrams/pool_metrics.eps}
-  \caption{For reference, the performance of the rebalancing portfolio --- the unique self-financing strategy that targets a 50-50 inventory balance and trades at the CoW oracle price --- is plotted in grey. The distance between the grey line and the gold CPMM line is LVR.}
+    \includegraphics[width=\textwidth * \real{0.7}]{diagrams/pool_metrics.eps}
+    \caption{Total value locked (TVL), daily volatility (computed over a 30 day rolling window), and reserve cash proportion
+ of the simulated pools.
+    %
+    For reference, the performance of the rebalancing portfolio trading at the CoW oracle price is plotted in grey. The distance between the grey line and the gold CPMM line is LVR.}
   \end{center}
 \end{figure}
 
@@ -774,9 +776,8 @@ This is especially salient for Feedlot, whose portfolio balance is sensitive to 
 %
 Despite this, note that the CPMM reserve balance remains close to even, as one would expect in a real-life equilibrium with a population of rational arbitrageurs.
 
-Trade flow is aggregated between the single pair 5 and 30 bps Univ3 WETH/USDC pools and matched on CoW trade timestamps. This means the order flow is a coarser representation than the actual order flow occuring during the same time period. 
 %
-Finally, we do not implement dynamic fees and analyze fees on the effects of LP profitability. 
+%Finally, we do not implement dynamic fees and analyze fees on the effects of LP profitability. 
 
 \subsection{For traders}
 
@@ -810,30 +811,66 @@ We identified three legitimate reasons:
 \section{How good a price oracle is CoW?}
 \label{price-analysis}
 
-The structure of Feedlot implicitly assumes that the CoW UCP is a bi-directional market midrate in which spread is created from trading fees.
+The structure of Feedlot implicitly assumes that the CoW UCP is an unbiased market midrate on which an AMM can define its own spread using trading fees.
 %
-However, in practice, since most volume on CoW settles on AMMs there is an intrinsic spread baked into the CoW UCP.
+However, in practice, since most orders on CoW are not perfectly balanced by orders in the opposite direction, much of the volume ends up directional and must settle on AMMs.
 %
-How much error does this spread introduce, and how does CoW measure against other bi-directional pricing data feeds?
+The spread on these AMMs is therefore baked into the UCP.
 %
-To study this, we obtained trade data for WETH/USDC orders on CoW, Uniswap v3 USDC/WETH 5bps and 30 bps fee pool swaps, and ETH/USD Chainlink oracle price data from August 2021 to March 2023. 
-%
-We observed 43,514 CoW trades, 410,240 Uniswap v3 swaps, and 124,876 Chainlink price updates. 
+How much error does this spread introduce, and how does CoW measure against other types of price feeds?
 
-We found that CoW traders receieve favorable bi-directional rates compared to trading on Univ3 with a lower bound of 0.49\% and an upper bound of 0.51\% on average. 
-
-\paragraph{Uniswap v3 gas adjustments.}
-Since CoW traders do not pay gas prices, we adjusted Univ3 spot prices to account for gas transaction costs.
+We compared the CoW UCP with two other types of price feed:
+\begin{itemize}
+  \item Chainlink oracle prices, another kind of non-directional market midrate;
+  \item Execution prices of swaps on Uniswap v3, analysed as two separate feeds of buy-side and sell-side prices.
+\end{itemize}
+We obtained trade data for WETH/USDC orders on CoW, Uniswap v3 USDC/WETH 5bps and 30 bps fee pool swaps, and ETH/USD Chainlink oracle price data from August 2021 to March 2023. 
 %
-Since we only had access to the gas limit, as an upper bound for the amount of gas used in a Univ3 transaction, we used the median gas limit (around 312,218 gas) as a heuristic to calculate the transaction cost. 
+Our dataset did not include exact gas fees for Uniswap swaps, so we adjusted the price to account for the real cost to the trader using an heuristic described below.
 %
-We also calculated a lower bound by assuming the gas used is equivalent to a single Univ3 swap transaction, which costs around 130,000 gas. 
+To isolate the directionality of the CoW spread, we also separated the CoW UCP feed into buy and sell side.
+
+Over the period studied, absolute CoW price deviation from Chainlink averaged $X$ (as a percentage of the Chainlink price), while Univ3 execution prices deviated on average $Y$.
 %
-Thus we can interpret the median value as assuming the average Univ3 swap goes through a little more than two hops on average.
-
-With the median gas adjustments, CoW traders received a 1.45\% discount to buy WETh and a 1.56\% premium to sell WETH on average.
-With the single hop gas adjustments, which serve as a hard lower bound, CoW traders received a 0.49\% discount to buy WETH and 0.51\% premium to sell WETH on average.
-
+Although over this period the quantiles were a little more favourable on Uniswap on the sell side, overall the spread on CoW was significantly tighter --- especially if we consider that our method of estimating gas costs for Uniswap trades is generally an underestimate.
+%
+\begin{table}
+  \begin{center}
+    \begin{tabular}{|r|c|c|}
+      \hline & CoW--Chain & Univ3--Chain \\
+      \hline $10\%$ &&\\
+       $25\%$ && \\
+       $50\%$ && \\
+       $75\%$ && \\
+       $90\%$ && \\ \hline
+    \end{tabular}
+    \caption{Quantiles for absolute price deviation of CoW, resp.~Univ3, from Chainlink prices.}
+  \end{center}
+\end{table}
+%
+\begin{table}
+  \begin{center}
+    \begin{tabular}{|r|c|c|}
+      \hline & CoW--Chain & Univ3--Chain \\
+      \hline $10\%$ &&\\
+       $25\%$ && \\
+       $50\%$ && \\
+       $75\%$ && \\
+       $90\%$ && \\ \hline
+    \end{tabular}
+    \qquad
+    \begin{tabular}{|r|c|c|}
+      \hline & Chain--CoW & Chain--Univ3 \\
+      \hline $10\%$ &&\\
+       $25\%$ && \\
+       $50\%$ && \\
+       $75\%$ && \\
+       $90\%$ && \\ \hline
+    \end{tabular}
+    \caption{Quantiles for signed price deviation of CoW, resp.~Univ3, from Chainlink prices on buy side (left) and sell side (right). Signs are chosen so that negative values indicate crossover, i.e.~a buy (resp.~sell) price below (resp.~above) the Chainlink price.}
+  \end{center}
+\end{table}
+%
 \begin{figure}
   \begin{center}
     \begin{minipage}{.5\textwidth}
@@ -857,21 +894,15 @@ With the single hop gas adjustments, which serve as a hard lower bound, CoW trad
 
 \begin{figure}
   \begin{center}
-    \begin{minipage}{.5\textwidth}
-      \begin{center}
-        \includegraphics[width=.9\textwidth]
+        \includegraphics[width=.9 \textwidth]
           {diagrams/weth_buy_line.eps}
       \end{center}
-   \end{minipage}%
-    %
-    \begin{minipage}{.5\textwidth}
+
       \begin{center}
         \includegraphics[width=.9\textwidth]
           {diagrams/weth_sell_line.eps}
-      \end{center}
-    \end{minipage}
   \end{center}
-  \caption{CoW buy (left) and sell (right) side price execution compared to Uniswap v3 and Chainlink}
+  \caption{CoW buy (top) and sell (bottom) side price execution compared to Uniswap v3 and Chainlink}
 \end{figure}
 
 
@@ -879,9 +910,28 @@ With the single hop gas adjustments, which serve as a hard lower bound, CoW trad
 
 \paragraph{Dataset.} Our dataset consists of Ethereum log data, which records certain on-chain events such as trades. It was sourced from The Graph, a blockchain data indexing service.\footnote{https://thegraph.com/}
 %
-More precisely, we used the Univ3, CoW, and Chainlink subgraphs curated by Messari, a crypto analytics provider.\footnote{https://subgraphs.messari.io/}
+More precisely, we used the Uniswap v3, CoW, and Chainlink subgraphs curated by Messari, a crypto analytics provider.\footnote{https://subgraphs.messari.io/}
 %
-Full details and our codebase are available \footnote{Feedlot Repo https://github.com/mohammed7s/Feedlot}.
+Univ3 trade flow is aggregated between the single pair 5 and 30 bps Univ3 WETH/USDC pools.
+%
+The dataset comprises 43,514 CoW trades, 410,240 Uniswap v3 swaps, and 124,876 Chainlink price updates. 
+
+To approximate the actual prices paid by traders on Uniswap v3, we made an adjustment to on-chain Univ3 spot prices to account for gas transaction costs.
+%
+Our dataset does not include the amount of gas used in the trade, so we conservatively assumed that each trade occurred as a complete transaction using 130,000 gas, that is, roughly the cost of a single swap between generic ERC-20 tokens.
+
+
+%Since we only had access to the gas limit, an, upper bound for the amount of gas used in a Univ3 transaction, we used the median gas limit (around 312,218 gas) as a heuristic to calculate the transaction cost. 
+%
+%
+%We can interpret the median value as assuming the average Univ3 swap goes through a little more than two hops on average.
+
+%With the median gas adjustments, CoW traders received a 1.45\% discount to buy WETh and a 1.56\% premium to sell WETH on average.
+%With the single hop gas adjustments, which serve as a hard lower bound, CoW traders received a 0.49\% discount to buy WETH and 0.51\% premium to sell WETH on average.
+
+Full details and our codebase are available on GitHub.\footnote{https://github.com/mohammed7s/Feedlot}
+
+
 
 \begin{comment}
 %To perform this task, we utilized the DataStreams python library, which is a subgraph query utility package. 
@@ -897,6 +947,8 @@ A safe implementation of a Feedlot AMM on the subscription model would provide t
 Unlike traditional static CFMMs, Feedlot protects LPs from adverse selection, while still offering an option to enjoy flexibly priced portfolio management. 
 %
 It would also yield a new revenue stream for CoW protocol in the form of oracle fees.
+%
+Similar principles should apply to more general applications of the CoW UCP as a price oracle, for example, to derivative markets.
 
 The question of whether a safe implementation is possible requires further research.
 %
@@ -914,6 +966,13 @@ Furthermore, if the scale of traditional derivative markets is anything to go by
 %
 We recommend that further resources be committed to research mitigation and enforcement methodology, with some more specific suggestions outlined in \S\ref{mitigation}.
 
+Finally, we believe that, due to the attractiveness of the CoW UCP as a price oracle, it's inevitable that people will build financial instruments that depend on it.
+%
+Markets for derivatives such as leveraged futures and options have the potential to dwarf spot markets in nominal terms, as they have done in centralised finance, exacerbating the risk of exploitation due to price manipulation.
+%
+Carelessly implemented UCP derivatives could imply serious negative externalities for CoW traders and community members.
+%
+Although the challenges may seem daunting, developing solutions using mitigation strategies such as those discussed in this report could encourage order flow to organise on safer channels.
 
 \printbibliography
 \end{document}
