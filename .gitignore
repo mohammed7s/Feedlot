@@ -66,6 +66,8 @@ MANIFEST
 /myenv
 /quantitative_results/sim/*.csv
 
+pdm.lock
+
 # LaTeX auxiliary files
 report/build/*.bbl
 report/build/*.blg
@@ -77,3 +79,12 @@ report/build/*.synctex.gz
 # drawio temporary files
 report/diagrams/*.drawio.bkp
 report/diagrams/*.drawio.dtmp
+
+# drawio generated files
+report/diagrams/price-curve.pdf
+report/diagrams/cow2.pdf
+report/diagrams/wrapper.pdf
+report/diagrams/sub-merged.pdf
+
+# notebook outputs
+report/diagrams/*.eps
