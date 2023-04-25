@@ -104,7 +104,7 @@ The fact that the UCP is used to settle a batch auction means that it has a uniq
 
 We give the working name \emph{Feedlot} to a hypothetical AMM designed on this model.
 
-The rest of this report is structured as follows: in \S\ref{general}, we review general principles of AMM design, including CFMMs and pricing oracles; 
+The report is structured as follows: in \S\ref{general}, we review general principles of AMM design, including CFMMs and pricing oracles; 
 %
 in \S\ref{architecture} we discuss the channel through which the UCP is communicated to a Feedlot liquidity pool; 
 %
@@ -113,6 +113,33 @@ in \S\ref{security} we review the security implications for CoW and Feedlot of c
 in \S\ref{price-analysis} we compare the historical performance of the UCP as a price oracle to other approaches to computing market prices;
 %
 finally, in \S\ref{impact} we study the economic implications for traders and LPs that a functioning Feedlot implementation would entail from theoretical and empirical perspectives.
+
+\subsection{Summary of results}
+
+\paragraph{Security}
+A pool that trades at the oracle price is vulnerable to oracle manipulation attacks. In the case of Feedlot, manipulating the oracle is as simple as providing liquidity to the CoW solver at the price one wishes the oracle to spit out. We describe several different security scenarios under which such attacks are possible.
+
+We introduce an informal notion of *manipulation resistance*, which is a necessary economic security requirement for a Feedlot pool to be an attractive investment for LPs. We find that volume controls, normalised in terms of the volume on CoW, are needed for manipulation resistance.
+
+\paragraph{The CoW UCP as an oracle}
+We found that the CoW UCP historically has performed very well as a price oracle (on the high volume pair WETH/USDC) in the sense that it tracks the Chainlink price much more closely than Uniswap v3 spot prices. Moreover, over many periods the CoW UCP updated more frequently than the Chainlink feed.
+  
+In particular, traders get very tight spreads on CoW compared with Uniswap v3.
+  
+\paragraph{Feedlot LP yield}
+  
+We simulated LP portfolio returns for a simple Feedlot AMM implementation using passthrough pricing with on-chain univ3 historical orderflow data. The Feedlot pool, lacking the portfolio control properties of a CFMM, is unstable, highlighting the need for a pricing curve to make an oracle pool interesting for LPs.
+
+\subsection{Future directions}
+Our work revealed several interesting potential directions for future research (and development):
+\begin{itemize}
+  \item 
+    Develop precise quantitative models to estimate the cost and marginal proceeds of manipulation (and hence manipulation resistance) when prices are sourced from a controlled selection of venues.
+  \item
+    Study ways to control solver incentives through adjusting rewards and the batch auction objective function.
+  \item
+    Investigate extensions of the UCP oracle approach to other applications of price oracles such as collateral liquidations and options.
+\end{itemize}
 
 
 \section{General design principles}
@@ -760,8 +787,7 @@ This results in consistently higher volatility of Feedlot compared to the CPMM, 
   \label{pool-metrics}
   \begin{center}
     \includegraphics[width=\textwidth * \real{0.7}]{diagrams/pool_metrics.eps}
-    \caption{Total value locked (TVL), daily volatility (computed over a 30 day rolling window), and reserve cash proportion
- of the simulated pools.
+    \caption{Total value locked (TVL), daily volatility (computed over a 30 day rolling window), and reserve cash proportion of the simulated pools.
     %
     For reference, the performance of the rebalancing portfolio trading at the CoW oracle price is plotted in grey. The distance between the grey line and the gold CPMM line is LVR.}
   \end{center}
